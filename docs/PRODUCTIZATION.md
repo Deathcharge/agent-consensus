@@ -221,7 +221,8 @@ preserving the extracted private integration or implementing another general age
 - [x] README claims map to files and commands in the repository.
 - [x] Format, lint, strict typing, tests/coverage, build, artifact check, isolated install, and examples
   pass in final local verification.
-- [ ] GitHub-hosted CI has run on the final commit (external gate).
+- [x] GitHub-hosted CI passed the supported-version, Windows, quality, package, installed-wheel, and
+  example jobs on the pushed release-candidate branch.
 - [ ] Release owner has confirmed name/version/tag and PyPI ownership (publication gate).
 
 ## Completed work
@@ -266,12 +267,13 @@ maintainer email was retained and the project link was corrected to HTTPS before
 | Isolated import outside the checkout | Exit 0; imported version `0.2.0`, vote smoke result `agreed yes` |
 | `<fresh-temp>/venv/Scripts/python -m pip check` | Exit 0, no broken requirements |
 | `<fresh-temp>/venv/Scripts/python examples/<each of five scripts>` | Every example exited 0 with real output |
+| GitHub Actions CI | Passed quality; Linux Python 3.10–3.14; Windows Python 3.14; wheel/sdist, installed-wheel, and example jobs on the pushed branch |
 | Tracked-file credential pattern scan | No matches |
 
 Not run locally: Python 3.10, 3.12, and 3.14 full suites (interpreters unavailable); Linux tests;
-GitHub-hosted CI; TestPyPI/PyPI publication; real paid provider calls. Python 3.11 ran the complete
-suite and Python 3.13 ran a core smoke test. CI defines the remaining Python 3.10–3.14 and Windows
-matrix, but its result is an external release gate rather than a local claim.
+TestPyPI/PyPI publication; real paid provider calls. Python 3.11 ran the complete local suite and
+Python 3.13 ran a local core smoke test. GitHub-hosted CI supplied the remaining Linux Python
+3.10–3.14 and Windows Python 3.14 evidence.
 
 ## Deferred work and rationale
 
@@ -295,9 +297,7 @@ matrix, but its result is an external release gate rather than a local claim.
    confirm owner access immediately before release.
 3. Choose the first public version/tag (the repository currently declares `0.2.0`) and review this
    changelog. Verification: version, Git tag, and artifact metadata match.
-4. Run the repository's GitHub-hosted CI on the final change. Verification: all matrix and package
-   jobs are green.
-5. If publishing, configure a PyPI Trusted Publisher scoped to this repository and release workflow;
+4. If publishing, configure a PyPI Trusted Publisher scoped to this repository and release workflow;
    do not add an API token to repository files. Verification: publish to TestPyPI first and install
    the exact artifact in a clean environment.
 
