@@ -3,6 +3,10 @@
 `agent-consensus` is a small Python library for deterministic vote evaluation and bounded
 asynchronous fan-out across independent agents, reviewers, or service adapters.
 
+Developed and maintained by [Samsarix LLC](https://www.samsarix.com). General inquiries:
+[contact@samsarix.com](mailto:contact@samsarix.com). Support and security reports:
+[support@samsarix.com](mailto:support@samsarix.com).
+
 It is for developers who already have participants capable of returning an explicit decision such
 as `approve`, `reject`, or `needs_review` and need one auditable answer. It does not call model
 providers, manage agent conversations, or guess whether arbitrary prose is semantically equivalent.
@@ -23,6 +27,16 @@ job:
 
 Participant failures remain in the agreement denominator. A surviving minority cannot look like a
 strong consensus merely because other participants failed.
+
+## Portfolio fit
+
+This repository deliberately stands on its own. `agent-consensus` owns the small, deterministic
+layer for joining **explicit choices** from application-supplied participants. The separate
+[`neural-mesh`](https://github.com/Deathcharge/neural-mesh) project covers a richer provider-facing
+workflow for comparing free-form AI responses, tracking provider usage, and persisting runs.
+
+Neither package is a runtime dependency of the other. Keeping that boundary lets applications use
+this voting primitive without provider SDKs, storage, credentials, or another Samsarix repository.
 
 ## Requirements
 
@@ -154,7 +168,8 @@ sum(input_tokens × provider_input_rate + output_tokens × provider_output_rate)
 
 The library itself has no hosted operating cost or telemetry.
 
-See [SECURITY.md](SECURITY.md) for the trust model and reporting guidance.
+See the [security policy](https://github.com/Deathcharge/agent-consensus/blob/main/SECURITY.md) for
+the trust model and reporting guidance.
 
 ## Development and verification
 
@@ -187,14 +202,17 @@ Build artifacts locally with `python -m build`. A release owner should then veri
 version/tag, changelog, and PyPI ownership before configuring a Trusted Publisher. No publication
 credentials belong in this repository.
 
-The package uses semantic versioning. See [CHANGELOG.md](CHANGELOG.md) for release notes.
+The package uses semantic versioning. See the
+[changelog](https://github.com/Deathcharge/agent-consensus/blob/main/CHANGELOG.md) for release notes
+and the [release procedure](https://github.com/Deathcharge/agent-consensus/blob/main/docs/RELEASING.md)
+for the exact owner-gated steps.
 
 ## Architecture
 
 - `agent_consensus/models.py`: immutable public configuration, input, outcome, and result types
 - `agent_consensus/core.py`: normalization, weighted tallying, async execution, and cancellation
 - `agent_consensus/errors.py`: stable package-specific exceptions
-- `agent_consensus/multi_ai_consensus.py`: compatibility import path without private Helix dependencies
+- `agent_consensus/multi_ai_consensus.py`: compatibility import path without external repository dependencies
 
 Provider integrations belong in the consuming application. This keeps the library independently
 usable and prevents credentials, model churn, provider SDKs, and retry policy from leaking into its
@@ -210,12 +228,25 @@ core API.
 
 ## Documentation
 
-- [Getting started](docs/GETTING_STARTED.md)
-- [API reference](docs/API_REFERENCE.md)
-- [Decision model](docs/CONSENSUS_ALGORITHMS.md)
-- [Productization record](docs/PRODUCTIZATION.md)
-- [Contributing](CONTRIBUTING.md)
+- [Getting started](https://github.com/Deathcharge/agent-consensus/blob/main/docs/GETTING_STARTED.md)
+- [API reference](https://github.com/Deathcharge/agent-consensus/blob/main/docs/API_REFERENCE.md)
+- [Decision model](https://github.com/Deathcharge/agent-consensus/blob/main/docs/CONSENSUS_ALGORITHMS.md)
+- [Licensing decision record](https://github.com/Deathcharge/agent-consensus/blob/main/docs/LICENSING.md)
+- [Release procedure](https://github.com/Deathcharge/agent-consensus/blob/main/docs/RELEASING.md)
+- [Productization record](https://github.com/Deathcharge/agent-consensus/blob/main/docs/PRODUCTIZATION.md)
+- [Contributing](https://github.com/Deathcharge/agent-consensus/blob/main/CONTRIBUTING.md)
 
 ## License
 
-MIT. See [LICENSE](LICENSE). No license change was made during productization.
+The current source is MIT-licensed. See the
+[license](https://github.com/Deathcharge/agent-consensus/blob/main/LICENSE). Samsarix LLC has not
+silently changed that grant; the
+[licensing decision record](https://github.com/Deathcharge/agent-consensus/blob/main/docs/LICENSING.md)
+documents the recommended Apache-2.0 option and the MPL-2.0 reciprocity alternative for an explicit
+owner decision before the first public release.
+
+Attribution and citation details are in
+[NOTICE](https://github.com/Deathcharge/agent-consensus/blob/main/NOTICE) and
+[CITATION.cff](https://github.com/Deathcharge/agent-consensus/blob/main/CITATION.cff). The license
+does not grant rights to Samsarix names or logos; see the
+[trademark guidance](https://github.com/Deathcharge/agent-consensus/blob/main/TRADEMARKS.md).

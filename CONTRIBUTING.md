@@ -37,7 +37,7 @@ timeout, cancellation, and budget paths when changing orchestration.
 - Keep explicit decisions separate from supporting prose.
 - Preserve deterministic outcomes and participant order.
 - Bound new network, memory, retry, concurrency, persistence, and cost behavior.
-- Do not add provider credentials or private Helix dependencies.
+- Do not add provider credentials or private/internal repository dependencies.
 - Do not log prompts, response content, metadata, or exception messages.
 - Document public API and semantics in the same change.
 - Avoid adding a runtime dependency when the standard library is sufficient.

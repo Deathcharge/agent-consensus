@@ -9,9 +9,12 @@ description = "Deterministic consensus evaluation and bounded async fan-out for 
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
-license-files = ["LICENSE"]
+license-files = ["LICENSE", "NOTICE", "TRADEMARKS.md"]
 authors = [
-    {name = "Helix Collective", email = "collective@helix.ai"},
+    {name = "Samsarix LLC", email = "contact@samsarix.com"},
+]
+maintainers = [
+    {name = "Samsarix Support", email = "support@samsarix.com"},
 ]
 keywords = ["agents", "consensus", "asyncio", "voting", "llm"]
 classifiers = [
@@ -39,10 +42,12 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/Deathcharge/agent-consensus"
+Homepage = "https://www.samsarix.com"
 Documentation = "https://github.com/Deathcharge/agent-consensus/tree/main/docs"
 Repository = "https://github.com/Deathcharge/agent-consensus.git"
 Issues = "https://github.com/Deathcharge/agent-consensus/issues"
+Changelog = "https://github.com/Deathcharge/agent-consensus/blob/main/CHANGELOG.md"
+Support = "https://www.samsarix.com"
 
 [tool.setuptools.packages.find]
 include = ["agent_consensus", "agent_consensus.*"]

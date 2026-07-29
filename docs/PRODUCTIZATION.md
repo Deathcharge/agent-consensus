@@ -4,6 +4,11 @@ Last updated: 2026-07-28
 
 This is the living audit and release record for `Deathcharge/agent-consensus`.
 
+Current product identity: `agent-consensus`, developed and maintained by Samsarix LLC. Public
+contacts are `contact@samsarix.com` for general inquiries and `support@samsarix.com` for support,
+security, and conduct reports. Historical Helix names below are retained only where needed to
+describe the repository's provenance and the dependencies removed during productization.
+
 ## Repository assessment
 
 ### Original purpose
@@ -89,6 +94,14 @@ AutoGen and LangGraph document broad conversation, routing, and workflow systems
 small deterministic join/evaluation primitive that can sit inside those systems or ordinary asyncio
 applications. It has no dependency on Helix, an agent framework, or an AI provider.
 
+### Portfolio boundary
+
+`agent-consensus` owns explicit-choice collection and deterministic weighted evaluation. The sibling
+`neural-mesh` repository addresses richer provider-facing comparison of free-form AI responses,
+usage/cost reporting, persistence, and CLI workflows. These are complementary products, not a
+runtime stack: neither repository depends on the other, and this package remains useful without any
+other Samsarix source checkout.
+
 ### Deliberate non-goals
 
 - Provider SDKs, provider credentials, model selection, or model-specific defaults
@@ -162,6 +175,8 @@ preserving the extracted private integration or implementing another general age
 - [x] No CI despite README claims.
 - [x] No installed-wheel or example verification.
 - [x] No truthful security/trust-boundary documentation.
+- [x] Current-facing ownership, support, conduct, citation, and attribution metadata used obsolete or
+  fictional identities.
 - [ ] Owner must verify distribution-name availability and ownership before publication.
 
 ### P2
@@ -170,6 +185,8 @@ preserving the extracted private integration or implementing another general age
 - [ ] Add property-based tests for custom voting policies if the policy surface expands.
 - [ ] Add signed provenance/SBOM in a publication workflow once release ownership is decided.
 - [ ] Reassess dropping Python 3.10 after its scheduled October 2026 end of life.
+- [ ] Owner must explicitly retain MIT or select Apache-2.0/MPL-2.0 after confirming the copyright
+  chain; the current MIT license was not silently changed.
 
 ## Implementation checklist
 
@@ -186,6 +203,10 @@ preserving the extracted private integration or implementing another general age
 - [x] Include maintained docs, examples, policies, and tests in the source distribution.
 - [x] Rewrite README and API/decision/getting-started documentation.
 - [x] Add security policy and changelog.
+- [x] Add Samsarix ownership/support metadata, citation, attribution, and trademark guidance.
+- [x] Document the standalone sibling-repository boundary and exact owner-gated release process.
+- [x] Record an evidence-backed license recommendation without changing legal terms automatically.
+- [x] Add repository ownership and monthly dependency-update configuration.
 - [x] Record final local and isolated-environment command outcomes below.
 
 ## Release acceptance criteria
@@ -212,14 +233,20 @@ preserving the extracted private integration or implementing another general age
 - Replaced fabricated examples, BFT claims, monitoring metrics, API, CI, and maturity claims.
 - Added modern package discovery, type marker, quality configuration, CI, release notes, and security
   guidance.
+- Replaced current-facing Helix/fictitious identities with Samsarix LLC and its working contact and
+  support addresses while preserving historical provenance.
+- Added `NOTICE`, `TRADEMARKS.md`, `CITATION.cff`, release instructions, and a licensing decision
+  record recommending Apache-2.0 or MPL-2.0 according to the owner's protection goal.
+- Defined a clean portfolio boundary with `neural-mesh`; both repositories remain standalone.
 
 ## Final verification
 
-Commands below were run after implementation and documentation changes on Windows. Generated
-baseline artifact directories could not be recursively deleted because the execution environment
-blocked deletion even after their absolute paths were verified; final checks therefore addressed the
-exact `0.2.0` filenames, and the isolated virtual environment was force-reinstalled from that wheel.
-Fresh GitHub CI will not contain the ignored baseline artifacts.
+Commands below were run after implementation and documentation changes on Windows. The execution
+environment blocked removal of ignored baseline artifact directories even after their absolute paths
+were verified, so the release artifacts and isolated virtual environment were created under a new,
+GUID-named system temporary directory. The wheel was built from that fresh sdist. The first branded
+metadata build correctly failed because setuptools does not accept a `mailto:` project URL; the
+maintainer email was retained and the project link was corrected to HTTPS before the successful run.
 
 | Command | Final result |
 | --- | --- |
@@ -230,14 +257,15 @@ Fresh GitHub CI will not contain the ignored baseline artifacts.
 | `python -m pytest` | Exit 0, 48 passed; 98.36% branch-aware coverage (95% required) |
 | `py -3.13 -c "...evaluate_votes..."` | Exit 0, printed `agreed yes` |
 | `python -m pip install --dry-run -r requirements-dev.txt` | Exit 0; pinned tools resolved and editable package would install |
-| `python -m build` | Exit 0; built `0.2.0` sdist and pure-Python wheel from the sdist |
-| `python -m twine check dist/agent_consensus-0.2.0-py3-none-any.whl dist/agent_consensus-0.2.0.tar.gz` | Both artifacts passed |
-| `python -m zipfile -l dist/agent_consensus-0.2.0-py3-none-any.whl` | Wheel contains the six package/type-marker files and metadata; no tests or private code |
-| `tar -tf dist/agent_consensus-0.2.0.tar.gz` | Sdist contains package, docs, examples, policies, contributor requirements, and tests |
-| `.package-venv/Scripts/python -m pip install --force-reinstall --no-deps <wheel>` | Exit 0, installed `agent-consensus-0.2.0` |
-| Isolated import from `.package-venv` working directory | Exit 0; imported from virtualenv `site-packages`, version `0.2.0`, vote smoke result `agreed yes` |
-| `.package-venv/Scripts/python -m pip check` | Exit 0, no broken requirements |
-| `.package-venv/Scripts/python examples/<each of five scripts>` | Every example exited 0 with real output |
+| `python -m build --outdir <fresh-temp>/dist` | Exit 0; built `0.2.0` sdist and pure-Python wheel from the fresh sdist |
+| `python -m twine check <fresh-temp>/dist/*` | Both artifacts passed |
+| `python -m zipfile -l <fresh-temp>/dist/*.whl` | Wheel contains the six package/type-marker files, metadata, MIT license, NOTICE, and trademark guidance; no tests or private code |
+| `tar -tf <fresh-temp>/dist/*.tar.gz` | Sdist contains package, citation, attribution, trademark guidance, docs, examples, policies, contributor requirements, and tests |
+| `cffconvert --validate -i CITATION.cff` | Exit 0; citation metadata is valid against CFF schema 1.2.0 |
+| `<fresh-temp>/venv/Scripts/python -m pip install --no-deps <wheel>` | Exit 0, installed `agent-consensus-0.2.0` |
+| Isolated import outside the checkout | Exit 0; imported version `0.2.0`, vote smoke result `agreed yes` |
+| `<fresh-temp>/venv/Scripts/python -m pip check` | Exit 0, no broken requirements |
+| `<fresh-temp>/venv/Scripts/python examples/<each of five scripts>` | Every example exited 0 with real output |
 | Tracked-file credential pattern scan | No matches |
 
 Not run locally: Python 3.10, 3.12, and 3.14 full suites (interpreters unavailable); Linux tests;
@@ -252,19 +280,24 @@ matrix, but its result is an external release gate rather than a local claim.
   trust model.
 - Persistence: result retention and privacy requirements belong to the host application.
 - Publication automation: cannot be tested honestly without owner repository/package configuration.
-- License change: existing MIT intent is clear, so the license remains unchanged.
+- License change: existing MIT intent is clear and earlier grants cannot be revoked. Apache-2.0 is
+  the permissive recommendation and MPL-2.0 is the reciprocity alternative, but copyright-chain and
+  legal intent remain owner decisions. See `docs/LICENSING.md`.
 
 ## Owner/external blockers
 
-1. Confirm that `agent-consensus` is the desired public distribution name and claim it through the
+1. Explicitly retain MIT or select Apache-2.0/MPL-2.0 after confirming copyright ownership and any
+   contributor consent. Verification: `LICENSE`, `pyproject.toml`, `CITATION.cff`, README, and the
+   release tag all identify the same terms; prior MIT versions remain available under MIT.
+2. Confirm that `agent-consensus` is the desired public distribution name and claim it through the
    authorized release flow. The unauthenticated project URL returned 404 during this audit, but name
    availability can change. Verification: open the intended project page while authenticated and
    confirm owner access immediately before release.
-2. Choose the first public version/tag (the repository currently declares `0.2.0`) and review this
+3. Choose the first public version/tag (the repository currently declares `0.2.0`) and review this
    changelog. Verification: version, Git tag, and artifact metadata match.
-3. Run the repository's GitHub-hosted CI on the final change. Verification: all matrix and package
+4. Run the repository's GitHub-hosted CI on the final change. Verification: all matrix and package
    jobs are green.
-4. If publishing, configure a PyPI Trusted Publisher scoped to this repository and release workflow;
+5. If publishing, configure a PyPI Trusted Publisher scoped to this repository and release workflow;
    do not add an API token to repository files. Verification: publish to TestPyPI first and install
    the exact artifact in a clean environment.
 
@@ -284,7 +317,9 @@ matrix, but its result is an external release gate rather than a local claim.
 ## Distribution and sustainability
 
 The simplest distribution is a pure-Python wheel and sdist on PyPI, with source installation as the
-pre-publication path. A free MIT library with volunteer/portfolio maintenance is the honest initial
-model. If maintenance demand emerges, sustainability could come from funded support or separately
+pre-publication path. A free open-source library maintained by Samsarix LLC is the honest initial
+model. Apache-2.0 best balances adoption, patent clarity, attribution mechanics, and trademark
+separation; MPL-2.0 is appropriate if the owner prioritizes reciprocity for distributed file changes.
+If maintenance demand emerges, sustainability could come from funded support or separately
 maintained adapters; a hosted subscription is not justified and would add credentials, privacy,
 availability, and billing scope without strengthening the core product.

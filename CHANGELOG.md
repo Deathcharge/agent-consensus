@@ -13,6 +13,8 @@ This project follows semantic versioning. Dates use ISO 8601.
 - Zero-runtime-dependency package with a `py.typed` marker
 - Real production-code tests, cross-version CI, wheel smoke testing, and offline examples
 - Security guidance and a living productization record
+- Samsarix LLC ownership, support contacts, citation metadata, attribution, and trademark guidance
+- A repeatable owner-gated release procedure and an evidence-backed licensing decision record
 
 ### Changed
 
@@ -20,6 +22,7 @@ This project follows semantic versioning. Dates use ISO 8601.
 - Replaced fictional `ConsensusEngine`, `AgentCoordinator`, BFT, and production-readiness claims
 - Consolidated packaging metadata in `pyproject.toml`
 - Raised the supported Python floor to 3.10 because Python 3.9 is end-of-life
+- Clarified the standalone boundary between this explicit-vote primitive and richer sibling tools
 
 ### Removed
 

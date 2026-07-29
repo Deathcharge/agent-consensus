@@ -9,10 +9,11 @@ published a package release; source users should track the `main` branch and rev
 
 Do not include credentials, proprietary prompts, model responses, or personal data in a public issue.
 Use GitHub's private vulnerability reporting feature for the repository if it is enabled. Otherwise,
-contact the repository owner through a private channel listed on the owner's GitHub profile before
-disclosing details publicly.
+email [support@samsarix.com](mailto:support@samsarix.com) with the repository name, affected version,
+impact, reproduction steps, and any suggested mitigation before disclosing details publicly.
 
 No response SLA is promised because the repository does not document a staffed security team.
+Do not send secrets or live customer data in the initial report.
 
 ## Trust model
 
