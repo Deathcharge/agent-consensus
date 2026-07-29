@@ -20,11 +20,14 @@ We are committed to providing a welcoming and inclusive environment for all cont
 
 ## Reporting
 
-Report violations to: conduct@agent-consensus.dev
+Report violations privately to [support@samsarix.com](mailto:support@samsarix.com) with
+`agent-consensus conduct report` in the subject. Do not include sensitive personal information
+beyond what is necessary to investigate.
 
 ## Enforcement
 
 Violations may result in:
+
 - Warning
 - Temporary ban
 - Permanent ban

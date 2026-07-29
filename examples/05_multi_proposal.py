@@ -1,25 +1,13 @@
-"""Example 5: Multi-Proposal Workflow"""
+"""Evaluate several independent proposals without shared hidden state."""
 
-from agent_consensus import ConsensusEngine
+from agent_consensus import Vote, evaluate_votes
 
-engine = ConsensusEngine()
+proposals = {
+    "release-1": [Vote("a", "ship"), Vote("b", "ship"), Vote("c", "hold")],
+    "release-2": [Vote("a", "ship"), Vote("b", "hold"), Vote("c", "hold")],
+    "release-3": [Vote("a", "ship"), Vote("b", "hold")],
+}
 
-# Multiple proposals
-proposals = [
-    {"id": "p1", "content": "Budget increase"},
-    {"id": "p2", "content": "Policy change"},
-    {"id": "p3", "content": "Resource allocation"}
-]
-
-# Votes for each proposal
-votes_set = [
-    {"for": 4, "against": 1},
-    {"for": 3, "against": 2},
-    {"for": 5, "against": 0}
-]
-
-print("=== Multi-Proposal Consensus ===")
-for i, (proposal, votes) in enumerate(zip(proposals, votes_set)):
-    result = engine.simple_majority(votes)
-    status = "AGREED" if result else "REJECTED"
-    print(f"{proposal['id']}: {proposal['content']} - {status}")
+for proposal_id, votes in proposals.items():
+    result = evaluate_votes(votes)
+    print(f"{proposal_id}: {result.status.value} ({result.choice})")

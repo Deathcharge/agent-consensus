@@ -1,148 +1,127 @@
-# Getting Started with Agent Consensus Engine
+# Getting started
 
-## Installation
+This guide takes a new user from installation to an auditable async consensus result without any
+network credentials.
 
-### Via pip
-
-```bash
-pip install agent-consensus
-```
-
-### From source
+## Install from source
 
 ```bash
 git clone https://github.com/Deathcharge/agent-consensus.git
 cd agent-consensus
-pip install -e .
+python -m pip install .
 ```
 
-### Development
+Confirm the installed public API:
 
 ```bash
-git clone https://github.com/Deathcharge/agent-consensus.git
-cd agent-consensus
-pip install -r requirements-test.txt
-pytest tests/
+python -c "import agent_consensus; print(agent_consensus.__version__)"
 ```
 
-## 5-Minute Quick Start
+Expected version for this checkout: `0.2.0`.
 
-### 1. Import the engine
+## Evaluate existing votes
 
 ```python
-from agent_consensus import ConsensusEngine, AgentCoordinator
+from agent_consensus import Vote, evaluate_votes
+
+result = evaluate_votes(
+    [Vote("a", "yes"), Vote("b", "YES"), Vote("c", "no")],
+    threshold=2 / 3,
+    min_votes=2,
+)
+
+assert result.agreed
+assert result.choice == "yes"
 ```
 
-### 2. Create agents
+Use this path when another system has already collected the votes. Voter names must be unique and
+weights must be finite positive numbers.
+
+## Adapt an async participant
+
+A participant adapter has one method contract:
 
 ```python
-agents = [
-    {"id": "agent_1", "name": "Alice"},
-    {"id": "agent_2", "name": "Bob"},
-    {"id": "agent_3", "name": "Charlie"}
-]
+async def adapter(prompt: str, *, max_tokens: int) -> ParticipantResponse:
+    ...
 ```
 
-### 3. Create a proposal
+The adapter owns provider configuration, credentials, input-token limits, and any retry behavior.
+It should map provider output to a deliberately small decision vocabulary rather than put arbitrary
+prose in `choice`.
 
 ```python
-proposal = {
-    "id": "proposal_1",
-    "content": "Increase budget by 10%",
-    "proposer": "agent_1"
-}
+from agent_consensus import ParticipantResponse
+
+
+async def policy_reviewer(prompt: str, *, max_tokens: int) -> ParticipantResponse:
+    decision = "approve" if "documented" in prompt.casefold() else "needs_review"
+    return ParticipantResponse(
+        choice=decision,
+        content="Local deterministic example.",
+        tokens_used=0,
+        metadata={"source": "local-policy-v1"},
+    )
 ```
 
-### 4. Reach consensus
+## Run the engine
 
 ```python
-engine = ConsensusEngine()
-result = engine.reach_consensus(agents, proposal)
-print(f"Status: {result['status']}")
-print(f"Agreement: {result['agreement_level']}")
+import asyncio
+
+from agent_consensus import ConsensusConfig, ConsensusEngine, Participant
+
+
+async def main() -> None:
+    engine = ConsensusEngine(
+        [
+            Participant("policy-a", policy_reviewer),
+            Participant("policy-b", policy_reviewer),
+        ],
+        config=ConsensusConfig(
+            threshold=1.0,
+            min_successful=2,
+            timeout_seconds=5,
+            max_concurrency=2,
+            max_output_tokens_per_participant=100,
+            max_total_output_tokens=200,
+        ),
+    )
+    result = await engine.run("The rollout is documented.")
+    print(result.status.value, result.choice)
+
+
+asyncio.run(main())
 ```
 
-## Common Patterns
-
-### Pattern 1: Simple Majority Voting
+## Handle every result state
 
 ```python
-votes = {
-    "agent_1": "for",
-    "agent_2": "for",
-    "agent_3": "against"
-}
-result = engine.simple_majority(votes)
+from agent_consensus import ConsensusStatus
+
+if result.status is ConsensusStatus.AGREED:
+    use(result.choice)
+elif result.status is ConsensusStatus.NO_CONSENSUS:
+    request_human_review(result.tallies)
+else:  # quorum_failed
+    retry_later_or_fail_closed(result.outcomes)
 ```
 
-### Pattern 2: Multi-Agent Coordination
+The library never retries automatically. A retry may repeat an external side effect or amplify cost,
+so retry policy belongs with the adapter or caller that understands idempotency.
 
-```python
-coordinator = AgentCoordinator()
-for agent in agents:
-    coordinator.register_agent(agent)
-state = coordinator.coordinate_agents(agents)
-```
+## Inspect failures safely
 
-### Pattern 3: Conflict Resolution
+Each `ParticipantOutcome` contains `success`, `error`, or `timeout`, duration, weight, allocation, and
+an exception type for failures. Exception messages are omitted because provider exceptions commonly
+contain request details or credentials.
 
-```python
-conflict = {
-    "type": "voting_conflict",
-    "agents": ["agent_1", "agent_2"]
-}
-resolved = coordinator.resolve_conflict(conflict)
-```
+`result.to_dict()` is suitable for application-owned serialization when your metadata values are
+JSON-compatible. It includes response content. Redact or omit fields before sending the result to a
+log or third-party monitor.
 
-### Pattern 4: Byzantine Fault Tolerance
+## Next steps
 
-```python
-faulty_agents = ["agent_3"]
-result = engine.bft(votes, faulty_agents)
-```
-
-### Pattern 5: Monitoring and Metrics
-
-```python
-metrics = engine.get_metrics()
-print(f"Total proposals: {metrics['total_proposals']}")
-print(f"Agreement rate: {metrics['agreement_rate']}")
-```
-
-## Troubleshooting
-
-### Consensus Timeout
-
-**Problem:** Consensus takes too long to reach
-
-**Solution:**
-```python
-engine = ConsensusEngine(timeout=30)  # Set timeout in seconds
-```
-
-### Deadlock
-
-**Problem:** Agents cannot reach agreement
-
-**Solution:**
-```python
-# Use supermajority instead of unanimous
-result = engine.supermajority(votes)
-```
-
-### Agent Failure
-
-**Problem:** Agent becomes unavailable
-
-**Solution:**
-```python
-# Use BFT to handle faulty agents
-result = engine.bft(votes, faulty_agents=["agent_3"])
-```
-
-## Next Steps
-
-- Read the [API Reference](API_REFERENCE.md)
-- Explore [Consensus Algorithms](CONSENSUS_ALGORITHMS.md)
-- Check out [Examples](../examples/)
-- Review [Contributing Guide](../CONTRIBUTING.md)
+- Read the exact [API reference](API_REFERENCE.md).
+- Understand threshold and failure behavior in the [decision model](CONSENSUS_ALGORITHMS.md).
+- Run every script in [`examples/`](../examples/).

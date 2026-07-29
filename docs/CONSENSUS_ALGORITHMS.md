@@ -1,201 +1,75 @@
-# Consensus Algorithms Guide
+# Decision model
 
-## Overview
+This package implements deterministic application-level vote aggregation. It deliberately does not
+claim distributed-system consensus or Byzantine fault tolerance.
 
-This guide explains the different consensus algorithms available in the Agent Consensus Engine and when to use each one.
+## Normalization
 
-## Algorithm Comparison
+The default normalizer applies Unicode `casefold()`, trims leading and trailing whitespace, and
+collapses internal whitespace. Thus `" APPROVE "` and `"approve"` share a tally. `"approve!"` and
+`"approve"` do not.
 
-| Algorithm | Requirement | Fault Tolerance | Use Case |
-|-----------|-------------|-----------------|----------|
-| Simple Majority | > 50% | None | General voting |
-| Supermajority | ≥ 2/3 | Low | Important decisions |
-| Unanimous | 100% | None | Critical decisions |
-| BFT | ≥ 2/3 | High | Untrusted agents |
-
-## Simple Majority
-
-**Requirement:** More than 50% agreement
-
-**Formula:** votes_for > (votes_for + votes_against) / 2
-
-**Example:**
-```python
-votes = {"for": 3, "against": 2}
-result = engine.simple_majority(votes)  # Result: agreed
-```
-
-**When to use:**
-- General voting
-- Quick decisions
-- Low-stakes proposals
-
-## Supermajority
-
-**Requirement:** At least 2/3 majority
-
-**Formula:** votes_for ≥ (votes_for + votes_against) * 2/3
-
-**Example:**
-```python
-votes = {"for": 4, "against": 1}
-result = engine.supermajority(votes)  # Result: agreed
-```
-
-**When to use:**
-- Important decisions
-- Policy changes
-- Resource allocation
-
-## Unanimous
-
-**Requirement:** 100% agreement
-
-**Formula:** votes_against == 0 AND votes_for > 0
-
-**Example:**
-```python
-votes = {"for": 5, "against": 0}
-result = engine.unanimous(votes)  # Result: agreed
-```
-
-**When to use:**
-- Critical decisions
-- Security policies
-- System changes
-
-## Byzantine Fault Tolerant (BFT)
-
-**Requirement:** At least 2/3 agreement despite faulty agents
-
-**Formula:** votes_for ≥ (total_agents - faulty_agents) * 2/3
-
-**Example:**
-```python
-votes = {"for": 5, "against": 0}
-faulty = ["agent_3"]
-result = engine.bft(votes, faulty_agents=faulty)  # Result: agreed
-```
-
-**When to use:**
-- Untrusted agents
-- Distributed systems
-- High-reliability requirements
-
-## Selection Guide
-
-### Decision Tree
-
-1. **Do you need to handle faulty agents?**
-   - Yes → Use **BFT**
-   - No → Continue to 2
-
-2. **How critical is the decision?**
-   - Very critical → Use **Unanimous**
-   - Important → Use **Supermajority**
-   - General → Use **Simple Majority**
-
-3. **What's your agreement threshold?**
-   - 100% → Use **Unanimous**
-   - 66%+ → Use **Supermajority** or **BFT**
-   - 50%+ → Use **Simple Majority**
-
-## Implementation Details
-
-### Simple Majority Implementation
+Semantic clustering is outside scope because it introduces another model, cost, nondeterminism, and
+a new failure mode into the decision boundary. Applications with domain aliases can supply an
+explicit normalizer:
 
 ```python
-def simple_majority(votes):
-    for_count = sum(1 for v in votes.values() if v == "for")
-    against_count = sum(1 for v in votes.values() if v == "against")
-    total = for_count + against_count
-    return for_count > total / 2
+aliases = {"approved": "approve", "yes": "approve"}
+normalizer = lambda choice: aliases.get(choice.casefold(), choice.casefold())
 ```
 
-### Supermajority Implementation
+Treat custom normalization as security-sensitive policy and test it with adversarial inputs.
 
-```python
-def supermajority(votes):
-    for_count = sum(1 for v in votes.values() if v == "for")
-    against_count = sum(1 for v in votes.values() if v == "against")
-    total = for_count + against_count
-    required = total * 2 / 3
-    return for_count >= required
+## Weighted threshold
+
+For every normalized choice, support is the sum of its successful participant weights.
+
+```text
+agreement = leading_choice_weight / total_configured_participant_weight
 ```
 
-### Unanimous Implementation
+The result is `agreed` only when:
 
-```python
-def unanimous(votes):
-    against_count = sum(1 for v in votes.values() if v == "against")
-    return against_count == 0 and len(votes) > 0
-```
+1. successful response count meets quorum;
+2. there is one unique leading choice; and
+3. agreement is greater than or equal to the configured threshold.
 
-### BFT Implementation
+Failures remain in the denominator. With three equal participants, two `approve` responses and one
+timeout produce `2 / 3`, not `1.0`.
 
-```python
-def bft(votes, faulty_agents):
-    for_count = sum(1 for v in votes.values() if v == "for")
-    total_agents = len(votes)
-    faulty_count = len(faulty_agents)
-    required = (total_agents - faulty_count) * 2 / 3
-    return for_count >= required
-```
+## Quorum
 
-## Performance Tuning
+Quorum is a count of successful, validated participant responses. It is separate from weighted
+agreement so a single heavily weighted participant cannot satisfy a multi-party availability rule.
 
-### Timeout Configuration
+If quorum is missed, status is `quorum_failed` and choice is `None`, even when the available votes
+all match. Callers should normally fail closed or request human review.
 
-```python
-engine = ConsensusEngine(timeout=30)  # 30 seconds
-```
+## Ties
 
-### Batch Processing
+Equal leading weights always produce `no_consensus`. This rule holds at a 0.5 threshold and prevents
+participant order from deciding the outcome.
 
-```python
-# Process multiple proposals efficiently
-for proposal in proposals:
-    result = engine.reach_consensus(agents, proposal)
-```
+Tallies are returned in deterministic order: descending weight, then normalized choice.
 
-### Caching Results
+## Confidence
 
-```python
-# Cache consensus results for identical proposals
-cache = {}
-if proposal_id in cache:
-    result = cache[proposal_id]
-else:
-    result = engine.reach_consensus(agents, proposal)
-    cache[proposal_id] = result
-```
+A participant may report confidence for auditing, but it does not modify vote weight. Allowing
+self-reported confidence to silently change authority makes decisions difficult to reason about.
+Assign deliberate participant weights instead.
 
-## Troubleshooting
+## Failure semantics
 
-### Consensus Failures
+- A timeout produces a `timeout` outcome.
+- Any other participant or response-contract exception produces an `error` outcome.
+- Only exception type is returned; exception messages are discarded.
+- Sibling calls continue after ordinary participant failure.
+- Cancelling the engine cancels all participant tasks and propagates cancellation.
+- No automatic retries occur.
 
-**Problem:** Consensus fails frequently
+## What this does not guarantee
 
-**Solution:** Use a more lenient algorithm
-```python
-# Change from Unanimous to Supermajority
-result = engine.supermajority(votes)
-```
-
-### Timeout Issues
-
-**Problem:** Consensus takes too long
-
-**Solution:** Increase timeout or use faster algorithm
-```python
-engine = ConsensusEngine(timeout=60)
-```
-
-### Faulty Agent Handling
-
-**Problem:** Faulty agents block consensus
-
-**Solution:** Use BFT algorithm
-```python
-result = engine.bft(votes, faulty_agents=faulty_list)
-```
+The engine runs in one Python process. It provides no durable log, replicated state machine,
+authenticated identity, network membership, leader election, equivocation detection, or tolerance
+proof. Do not use it as a substitute for Raft, Paxos, PBFT, database transactions, or a safety-critical
+human approval system.

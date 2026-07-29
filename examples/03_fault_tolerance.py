@@ -1,24 +1,40 @@
-"""Example 3: Byzantine Fault Tolerance"""
+"""Observe ordinary participant failure without hiding it."""
 
-from agent_consensus import ConsensusEngine
+import asyncio
 
-engine = ConsensusEngine()
+from agent_consensus import (
+    ConsensusConfig,
+    ConsensusEngine,
+    Participant,
+    ParticipantResponse,
+)
 
-# Votes with one faulty agent
-votes = {
-    "agent_1": "for",
-    "agent_2": "for",
-    "agent_3": "for",
-    "agent_4": "for",
-    "agent_5": "against",
-    "agent_6": "against",
-    "agent_7": "against"
-}
 
-faulty_agents = ["agent_7"]  # Agent 7 is faulty
+async def approves(prompt: str, *, max_tokens: int) -> ParticipantResponse:
+    del prompt, max_tokens
+    return ParticipantResponse(choice="approve", content="Checks passed.")
 
-# Use BFT
-result = engine.bft(votes, faulty_agents)
-print(f"BFT Result: {result}")
-print(f"Faulty Agents: {faulty_agents}")
-print(f"Consensus: Despite faulty agent, agreement reached")
+
+async def unavailable(prompt: str, *, max_tokens: int) -> ParticipantResponse:
+    del prompt, max_tokens
+    raise RuntimeError("provider unavailable")
+
+
+async def main() -> None:
+    engine = ConsensusEngine(
+        [
+            Participant("security", approves),
+            Participant("reliability", approves),
+            Participant("unavailable-reviewer", unavailable),
+        ],
+        config=ConsensusConfig(min_successful=2),
+    )
+    result = await engine.run("Should the release proceed?")
+
+    print(f"Status: {result.status.value}")
+    print(f"Agreement: {result.agreement:.1%}")
+    for outcome in result.outcomes:
+        print(f"{outcome.participant}: {outcome.status.value}")
+
+
+asyncio.run(main())

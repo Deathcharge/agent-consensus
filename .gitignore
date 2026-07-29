@@ -1,6 +1,12 @@
 __pycache__/
 *.py[cod]
 *$py.class
+.coverage
+.coverage.*
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+coverage.xml
 *.so
 .Python
 build/
@@ -19,6 +25,7 @@ wheels/
 .installed.cfg
 *.egg
 .venv
+.package-venv*/
 env/
 venv/
 ENV/
