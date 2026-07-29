@@ -1,233 +1,193 @@
-"""Test suite for consensus mechanisms."""
+"""Tests for deterministic vote evaluation and public models."""
+
+import json
 
 import pytest
-from unittest.mock import Mock
-from datetime import datetime
+
+from agent_consensus import (
+    ConfigurationError,
+    ConsensusConfig,
+    ConsensusStatus,
+    DuplicateParticipantError,
+    Participant,
+    ParticipantResponse,
+    ResponseValidationError,
+    Vote,
+    evaluate_votes,
+    normalize_choice,
+)
 
 
-class TestConsensusBasics:
-    """Test basic consensus functionality."""
+def test_evaluate_votes_reaches_normalized_supermajority() -> None:
+    result = evaluate_votes(
+        [
+            Vote("reviewer-a", "APPROVE"),
+            Vote("reviewer-b", " approve "),
+            Vote("reviewer-c", "reject"),
+        ]
+    )
 
-    @pytest.mark.consensus
-    def test_consensus_initialization(self, mock_proposal):
-        """Test consensus engine initialization."""
-        assert mock_proposal["id"] == "proposal_1"
-        assert mock_proposal["status"] == "pending"
-
-    @pytest.mark.consensus
-    def test_proposal_creation(self, mock_proposals):
-        """Test proposal creation."""
-        assert len(mock_proposals) == 3
-        assert all(p["status"] == "pending" for p in mock_proposals)
-
-    @pytest.mark.consensus
-    def test_vote_recording(self, mock_proposal, mock_votes):
-        """Test vote recording."""
-        mock_proposal["votes"] = mock_votes
-        assert len(mock_proposal["votes"]) == 5
+    assert result.status is ConsensusStatus.AGREED
+    assert result.choice == "APPROVE"
+    assert result.agreement == pytest.approx(2 / 3)
+    assert result.tallies[0].normalized_choice == "approve"
+    assert result.tallies[0].participants == ("reviewer-a", "reviewer-b")
 
 
-class TestVotingMechanisms:
-    """Test voting mechanisms."""
+def test_evaluate_votes_returns_no_consensus_for_tie() -> None:
+    result = evaluate_votes(
+        [Vote("a", "approve"), Vote("b", "reject")],
+        threshold=0.5,
+        min_votes=2,
+    )
 
-    @pytest.mark.consensus
-    def test_simple_majority_voting(self, simple_majority_scenario):
-        """Test simple majority voting."""
-        scenario = simple_majority_scenario
-        assert scenario["votes_for"] > scenario["votes_against"]
-
-    @pytest.mark.consensus
-    def test_supermajority_voting(self, supermajority_scenario):
-        """Test supermajority voting."""
-        scenario = supermajority_scenario
-        required = scenario["agents"] * 2 / 3
-        assert scenario["votes_for"] >= required
-
-    @pytest.mark.consensus
-    def test_unanimous_voting(self, unanimous_scenario):
-        """Test unanimous voting."""
-        scenario = unanimous_scenario
-        assert scenario["votes_for"] == scenario["agents"]
-        assert scenario["votes_against"] == 0
-
-    @pytest.mark.consensus
-    def test_deadlock_voting(self, deadlock_scenario):
-        """Test deadlock voting."""
-        scenario = deadlock_scenario
-        assert scenario["votes_for"] == scenario["votes_against"]
+    assert result.status is ConsensusStatus.NO_CONSENSUS
+    assert result.choice is None
+    assert result.agreement == 0.5
 
 
-class TestConsensusAlgorithms:
-    """Test consensus algorithms."""
+def test_evaluate_votes_reports_quorum_failure() -> None:
+    result = evaluate_votes([], min_votes=1)
 
-    @pytest.mark.consensus
-    def test_simple_majority_algorithm(self):
-        """Test simple majority algorithm."""
-        votes = {"for": 3, "against": 2}
-        total = votes["for"] + votes["against"]
-        result = votes["for"] > total / 2
-        assert result is True
-
-    @pytest.mark.consensus
-    def test_supermajority_algorithm(self):
-        """Test supermajority algorithm."""
-        votes = {"for": 4, "against": 1}
-        total = votes["for"] + votes["against"]
-        required = total * 2 / 3
-        result = votes["for"] >= required
-        assert result is True
-
-    @pytest.mark.consensus
-    def test_unanimous_algorithm(self):
-        """Test unanimous algorithm."""
-        votes = {"for": 5, "against": 0}
-        result = votes["against"] == 0 and votes["for"] > 0
-        assert result is True
-
-    @pytest.mark.consensus
-    def test_bft_algorithm(self, bft_scenario):
-        """Test Byzantine fault tolerant algorithm."""
-        scenario = bft_scenario
-        total_agents = scenario["agents"]
-        faulty = scenario["faulty_agents"]
-        required = total_agents - faulty
-        assert scenario["votes_for"] >= required
+    assert result.status is ConsensusStatus.QUORUM_FAILED
+    assert result.total_count == 0
+    assert result.tallies == ()
 
 
-class TestAgreementCalculation:
-    """Test agreement level calculation."""
+def test_evaluate_votes_respects_weights() -> None:
+    result = evaluate_votes(
+        [Vote("owner", "ship", weight=3), Vote("reviewer", "hold")],
+        threshold=0.75,
+        min_votes=2,
+    )
 
-    @pytest.mark.consensus
-    def test_agreement_percentage(self):
-        """Test agreement percentage."""
-        votes_for = 4
-        total_votes = 5
-        agreement = votes_for / total_votes
-        assert agreement == 0.8
-
-    @pytest.mark.consensus
-    def test_agreement_with_abstentions(self):
-        """Test agreement with abstentions."""
-        votes_for = 3
-        votes_against = 1
-        abstain = 1
-        total = votes_for + votes_against + abstain
-        agreement = votes_for / total
-        assert agreement == 0.6
+    assert result.agreed
+    assert result.choice == "ship"
+    assert result.agreement == 0.75
+    assert result.total_weight == 4
 
 
-class TestProposalHandling:
-    """Test proposal handling."""
+def test_evaluate_votes_supports_explicit_custom_normalization() -> None:
+    result = evaluate_votes(
+        [Vote("a", "yes: safe"), Vote("b", "yes: documented")],
+        normalizer=lambda choice: choice.split(":", maxsplit=1)[0],
+        min_votes=2,
+    )
 
-    @pytest.mark.consensus
-    def test_proposal_status_transitions(self):
-        """Test proposal status transitions."""
-        statuses = ["pending", "voting", "agreed", "rejected"]
-        assert "pending" in statuses
-
-    @pytest.mark.consensus
-    def test_proposal_timestamp(self, mock_proposal):
-        """Test proposal timestamp."""
-        assert "timestamp" in mock_proposal
-
-    @pytest.mark.consensus
-    def test_proposal_proposer_tracking(self, mock_proposal):
-        """Test proposal proposer tracking."""
-        assert mock_proposal["proposer"] == "agent_1"
+    assert result.agreed
+    assert result.tallies[0].normalized_choice == "yes"
 
 
-class TestConsensusState:
-    """Test consensus state management."""
-
-    @pytest.mark.consensus
-    def test_consensus_result_structure(self, mock_consensus_result):
-        """Test consensus result structure."""
-        result = mock_consensus_result
-        assert "proposal_id" in result
-        assert "status" in result
-        assert "agreement_level" in result
-
-    @pytest.mark.consensus
-    def test_consensus_result_values(self, mock_consensus_result):
-        """Test consensus result values."""
-        result = mock_consensus_result
-        assert result["status"] == "agreed"
-        assert result["agreement_level"] == 0.8
+def test_duplicate_voter_names_are_rejected() -> None:
+    with pytest.raises(DuplicateParticipantError, match="duplicate participant"):
+        evaluate_votes([Vote("same", "yes"), Vote("same", "no")])
 
 
-class TestScalability:
-    """Test consensus scalability."""
-
-    @pytest.mark.consensus
-    @pytest.mark.performance
-    def test_large_agent_set(self):
-        """Test large agent set."""
-        agents = [Mock(id=f"agent_{i}") for i in range(100)]
-        assert len(agents) == 100
-
-    @pytest.mark.consensus
-    @pytest.mark.performance
-    def test_many_proposals(self):
-        """Test many proposals."""
-        proposals = [{"id": f"proposal_{i}"} for i in range(1000)]
-        assert len(proposals) == 1000
+def test_static_normalizer_must_be_callable() -> None:
+    with pytest.raises(ConfigurationError, match="normalizer"):
+        evaluate_votes([Vote("a", "yes")], normalizer=None)  # type: ignore[arg-type]
 
 
-class TestEdgeCases:
-    """Test edge cases."""
-
-    @pytest.mark.consensus
-    def test_single_agent_consensus(self):
-        """Test single agent consensus."""
-        votes = {"for": 1, "against": 0}
-        assert votes["for"] > 0
-
-    @pytest.mark.consensus
-    def test_empty_votes(self):
-        """Test empty votes."""
-        votes = {}
-        assert len(votes) == 0
-
-    @pytest.mark.consensus
-    def test_all_abstentions(self):
-        """Test all abstentions."""
-        votes = {"abstain": 5}
-        assert sum(votes.values()) == 5
+@pytest.mark.parametrize("threshold", [0, -0.1, 1.1, float("inf")])
+def test_invalid_threshold_is_rejected(threshold: float) -> None:
+    with pytest.raises(ConfigurationError, match="threshold"):
+        evaluate_votes([], threshold=threshold)
 
 
-class TestMetricsMonitoring:
-    """Test metrics monitoring."""
-
-    @pytest.mark.consensus
-    def test_consensus_metrics_structure(self, consensus_metrics):
-        """Test metrics structure."""
-        metrics = consensus_metrics
-        assert "total_proposals" in metrics
-        assert "agreed_proposals" in metrics
-
-    @pytest.mark.consensus
-    def test_consensus_metrics_values(self, consensus_metrics):
-        """Test metrics values."""
-        metrics = consensus_metrics
-        assert metrics["total_proposals"] == 100
-        assert metrics["agreed_proposals"] == 85
+@pytest.mark.parametrize("choice", ["", "   "])
+def test_empty_choice_is_rejected(choice: str) -> None:
+    with pytest.raises(ResponseValidationError, match="choice"):
+        ParticipantResponse(choice=choice)
 
 
-class TestIntegration:
-    """Test integration scenarios."""
+def test_response_shape_limits_are_enforced() -> None:
+    with pytest.raises(ResponseValidationError, match="choice cannot exceed"):
+        ParticipantResponse(choice="x" * 257)
+    with pytest.raises(ResponseValidationError, match="content"):
+        ParticipantResponse(choice="yes", content=123)  # type: ignore[arg-type]
+    with pytest.raises(ResponseValidationError, match="metadata"):
+        ParticipantResponse(choice="yes", metadata=[])  # type: ignore[arg-type]
 
-    @pytest.mark.consensus
-    @pytest.mark.integration
-    def test_proposal_to_consensus_workflow(self, mock_proposal, mock_votes):
-        """Test proposal to consensus workflow."""
-        mock_proposal["votes"] = mock_votes
-        votes_for = sum(1 for v in mock_votes.values() if v == "for")
-        assert votes_for > 0
 
-    @pytest.mark.consensus
-    @pytest.mark.integration
-    def test_multiple_proposals_consensus(self, mock_proposals):
-        """Test multiple proposals."""
-        for proposal in mock_proposals:
-            assert proposal["status"] == "pending"
-        assert len(mock_proposals) == 3
+def test_response_usage_fields_are_validated() -> None:
+    with pytest.raises(ResponseValidationError, match="confidence"):
+        ParticipantResponse(choice="yes", confidence=1.1)
+    with pytest.raises(ResponseValidationError, match="tokens_used"):
+        ParticipantResponse(choice="yes", tokens_used=-1)
+    with pytest.raises(ResponseValidationError, match="tokens_used"):
+        ParticipantResponse(choice="yes", tokens_used=True)
+
+
+def test_response_defensively_copies_metadata() -> None:
+    metadata = {"source": "local"}
+    response = ParticipantResponse(choice="yes", metadata=metadata)
+    metadata["source"] = "changed"
+
+    assert response.metadata["source"] == "local"
+
+
+def test_participant_configuration_is_validated() -> None:
+    async def valid(prompt: str, *, max_tokens: int) -> ParticipantResponse:
+        del prompt, max_tokens
+        return ParticipantResponse(choice="yes")
+
+    with pytest.raises(ConfigurationError, match="name"):
+        Participant("", valid)
+    with pytest.raises(ConfigurationError, match="name cannot exceed"):
+        Participant("x" * 129, valid)
+    with pytest.raises(ConfigurationError, match="callable"):
+        Participant("invalid", None)  # type: ignore[arg-type]
+    with pytest.raises(ConfigurationError, match="weight"):
+        Participant("invalid", valid, weight=0)
+
+
+def test_vote_shape_is_validated() -> None:
+    with pytest.raises(ResponseValidationError, match="participant"):
+        Vote("", "yes")
+    with pytest.raises(ResponseValidationError, match="participant cannot exceed"):
+        Vote("x" * 129, "yes")
+    with pytest.raises(ResponseValidationError, match="weight"):
+        Vote("a", "yes", weight=0)
+    assert Vote("  trimmed  ", "yes").participant == "trimmed"
+
+
+def test_config_rejects_unbounded_or_impossible_values() -> None:
+    with pytest.raises(ConfigurationError, match="timeout_seconds"):
+        ConsensusConfig(timeout_seconds=0)
+    with pytest.raises(ConfigurationError, match="max_concurrency"):
+        ConsensusConfig(max_concurrency=0)
+    with pytest.raises(ConfigurationError, match="min_successful"):
+        ConsensusConfig(min_successful=0)
+    with pytest.raises(ConfigurationError, match="integer"):
+        ConsensusConfig(min_successful=True)
+
+
+@pytest.mark.parametrize(
+    "field_name",
+    [
+        "max_concurrency",
+        "max_participants",
+        "max_prompt_characters",
+        "max_response_characters",
+        "max_output_tokens_per_participant",
+        "max_total_output_tokens",
+    ],
+)
+def test_config_rejects_non_positive_limits(field_name: str) -> None:
+    with pytest.raises(ConfigurationError, match=field_name):
+        ConsensusConfig(**{field_name: 0})
+
+
+def test_normalize_choice_only_changes_case_and_whitespace() -> None:
+    assert normalize_choice("  Needs   Review ") == "needs review"
+    assert normalize_choice("yes!") != normalize_choice("yes")
+    with pytest.raises(ResponseValidationError, match="normalized choice"):
+        normalize_choice("   ")
+
+
+def test_result_is_json_serializable_with_json_metadata() -> None:
+    result = evaluate_votes([Vote("a", "yes")])
+
+    encoded = json.dumps(result.to_dict(), sort_keys=True)
+    assert '"status": "agreed"' in encoded
+    assert '"participant": "a"' in encoded

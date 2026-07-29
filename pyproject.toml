@@ -1,32 +1,93 @@
 [build-system]
-requires = ["setuptools>=45", "wheel"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "agent-consensus"
-version = "0.1.0"
-description = "Distributed consensus algorithms"
+version = "0.2.0"
+description = "Deterministic consensus evaluation and bounded async fan-out for Python agents"
 readme = "README.md"
-requires-python = ">=3.9"
-license = {text = "MIT"}
+requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [
-    {name = "Helix Collective", email = "collective@helix.ai"}
+    {name = "Helix Collective", email = "collective@helix.ai"},
 ]
+keywords = ["agents", "consensus", "asyncio", "voting", "llm"]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Typing :: Typed",
 ]
-dependencies = [
-    "helix-hub-shared>=0.1.0",
-    "pydantic>=2.0",
+
+[project.optional-dependencies]
+dev = [
+    "build>=1.5,<2",
+    "mypy>=1.19,<2",
+    "pytest>=8.4,<9",
+    "pytest-asyncio>=1.3,<2",
+    "pytest-cov>=6.3,<7",
+    "ruff>=0.15,<1",
+    "twine>=6.2,<7",
 ]
 
 [project.urls]
 Homepage = "https://github.com/Deathcharge/agent-consensus"
+Documentation = "https://github.com/Deathcharge/agent-consensus/tree/main/docs"
 Repository = "https://github.com/Deathcharge/agent-consensus.git"
 Issues = "https://github.com/Deathcharge/agent-consensus/issues"
+
+[tool.setuptools.packages.find]
+include = ["agent_consensus", "agent_consensus.*"]
+exclude = ["tests", "tests.*"]
+
+[tool.setuptools.package-data]
+agent_consensus = ["py.typed"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = [
+    "-ra",
+    "--strict-config",
+    "--strict-markers",
+    "--cov=agent_consensus",
+    "--cov-branch",
+    "--cov-report=term-missing",
+    "--cov-fail-under=95",
+]
+asyncio_mode = "strict"
+
+[tool.coverage.run]
+branch = true
+source = ["agent_consensus"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+exclude_lines = [
+    "if TYPE_CHECKING:",
+    '\.\.\.$',
+    "raise NotImplementedError",
+]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+files = ["agent_consensus"]
+pretty = true
+show_error_codes = true
+warn_unreachable = true
