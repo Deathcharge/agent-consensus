@@ -1,202 +1,146 @@
-# Agent Consensus Engine - API Reference
+# API reference
 
-## Overview
+All supported public names are exported from `agent_consensus`. Type hints ship with a `py.typed`
+marker.
 
-The Agent Consensus Engine provides a comprehensive framework for multi-agent coordination and consensus protocols. This document details all public APIs and their usage.
-
-## Core Classes
-
-### ConsensusEngine
-
-The main consensus engine for reaching agreement among agents.
+## ConsensusEngine
 
 ```python
-from agent_consensus import ConsensusEngine
-
-engine = ConsensusEngine()
-result = engine.reach_consensus(agents, proposal)
+ConsensusEngine(
+    participants: Iterable[Participant],
+    *,
+    config: ConsensusConfig | None = None,
+    normalizer: Callable[[str], str] = normalize_choice,
+)
 ```
 
-**Methods:**
-- `reach_consensus(agents, proposal)` - Reach consensus on a proposal
-- `calculate_agreement(votes)` - Calculate agreement level
-- `get_consensus_state()` - Get current consensus state
+Construction rejects an empty participant list, duplicate names, impossible quorum, participant
+counts above the configured cap, and a total token budget too small to allocate one token per
+participant.
 
-### AgentCoordinator
+### `await run(prompt: str) -> ConsensusResult`
 
-Coordinates multiple agents and manages their interactions.
+Queries participants with bounded concurrency and a timeout for each active call. Queue time is
+included in outcome duration but not in the individual call timeout. Worst-case run time is roughly
+`ceil(participants / max_concurrency) × timeout_seconds`, plus cancellation cleanup and local work.
+
+Cancellation of `run()` cancels all outstanding participant tasks and waits for their cleanup before
+propagating `CancelledError`.
+
+## ConsensusConfig
+
+Immutable settings with safe finite defaults:
+
+| Field | Default | Meaning |
+| --- | ---: | --- |
+| `threshold` | `2 / 3` | Required leading weight divided by all configured weight |
+| `min_successful` | `2` | Successful responses required for quorum |
+| `timeout_seconds` | `30.0` | Timeout for one active participant call |
+| `max_concurrency` | `4` | Simultaneous participant calls |
+| `max_participants` | `32` | Fan-out cap |
+| `max_prompt_characters` | `100_000` | Prompt size cap before calls start |
+| `max_response_characters` | `100_000` | Supporting-content cap per response |
+| `max_output_tokens_per_participant` | `1_000` | Requested per-call output cap |
+| `max_total_output_tokens` | `4_000` | Requested output cap split across all participants |
+
+The effective `max_tokens` passed to each participant is:
+
+```text
+min(max_output_tokens_per_participant, floor(max_total_output_tokens / participant_count))
+```
+
+## Participant
 
 ```python
-from agent_consensus import AgentCoordinator
-
-coordinator = AgentCoordinator()
-coordinator.register_agent(agent)
-coordinator.coordinate_agents(agents)
+Participant(name: str, responder: Responder, weight: float = 1.0)
 ```
 
-**Methods:**
-- `register_agent(agent)` - Register an agent
-- `get_agent_state(agent_id)` - Get agent state
-- `coordinate_agents(agents)` - Coordinate multiple agents
-- `resolve_conflict(conflict)` - Resolve agent conflicts
+Names must be unique and at most 128 characters. Weight must be finite and positive.
 
-## Consensus Algorithms
-
-### Simple Majority
-
-Requires more than 50% agreement.
+## Responder protocol
 
 ```python
-result = engine.simple_majority(votes)
+async def __call__(prompt: str, *, max_tokens: int) -> ParticipantResponse: ...
 ```
 
-### Supermajority
+Any async function or callable object with this shape is accepted. Returning another type produces
+an error outcome rather than crashing sibling calls.
 
-Requires 2/3 majority.
+## ParticipantResponse
 
 ```python
-result = engine.supermajority(votes)
+ParticipantResponse(
+    choice: str,
+    content: str = "",
+    confidence: float | None = None,
+    tokens_used: int | None = None,
+    metadata: Mapping[str, Any] = {},
+)
 ```
 
-### Unanimous
+Only `choice` affects consensus. It must be non-empty and at most 256 characters. Confidence, when
+present, must be between 0 and 1. Reported tokens cannot be negative or exceed the allocation passed
+to the adapter. Metadata is returned unchanged and is never logged by the library.
 
-Requires 100% agreement.
+## `evaluate_votes`
 
 ```python
-result = engine.unanimous(votes)
+evaluate_votes(
+    votes: Iterable[Vote],
+    *,
+    threshold: float = 2 / 3,
+    min_votes: int = 1,
+    normalizer: Callable[[str], str] = normalize_choice,
+) -> ConsensusResult
 ```
 
-### Byzantine Fault Tolerant (BFT)
+Synchronously evaluates already collected votes. Duplicate voter names are rejected. Because every
+input is a collected vote, this helper has no error or timeout outcomes.
 
-Handles faulty agents.
+## Vote
 
 ```python
-result = engine.bft(votes, faulty_agents)
+Vote(participant: str, choice: str, weight: float = 1.0)
 ```
 
-## Data Structures
+Participant and choice must be non-empty. Weight must be finite and positive.
 
-### Proposal
+## ConsensusResult
 
-```python
-{
-    "id": "proposal_1",
-    "content": "Proposal content",
-    "proposer": "agent_1",
-    "timestamp": "2026-04-12T12:00:00",
-    "status": "pending",
-    "votes": {}
-}
-```
+Important fields:
 
-### ConsensusResult
+- `status`: `ConsensusStatus.AGREED`, `NO_CONSENSUS`, or `QUORUM_FAILED`
+- `choice`: leading original choice only when agreed; otherwise `None`
+- `agreement`: leading weight divided by all configured weight
+- `quorum_reached`: whether the successful response count met the minimum
+- `successful_count`, `total_count`, `successful_weight`, `total_weight`
+- `reported_tokens_used`: sum of non-null successful token reports
+- `token_usage_complete`: true only when every successful response reported usage
+- `tallies`: ordered weighted support by normalized choice
+- `outcomes`: participant-order execution details
+- `duration_ms`: total local run duration
+- `agreed`: convenience boolean
+- `to_dict()`: full dictionary representation
 
-```python
-{
-    "proposal_id": "proposal_1",
-    "status": "agreed",
-    "agreement_level": 0.8,
-    "votes_for": 4,
-    "votes_against": 1,
-    "abstentions": 0,
-    "timestamp": "2026-04-12T12:00:00"
-}
-```
+## Enums
 
-### AgentState
+`ConsensusStatus` values: `agreed`, `no_consensus`, `quorum_failed`.
 
-```python
-{
-    "id": "agent_1",
-    "name": "Agent1",
-    "state": "active",
-    "last_update": "2026-04-12T12:00:00",
-    "metrics": {
-        "consensus_reached": 10,
-        "votes_cast": 15,
-        "conflicts_resolved": 2
-    }
-}
-```
+`ResponseStatus` values: `success`, `error`, `timeout`.
 
-## Error Handling
+## Exceptions
 
-### ConsensusTimeoutError
+- `ConsensusError`: base package exception
+- `ConfigurationError`: invalid bounds, thresholds, participants, or budgets
+- `DuplicateParticipantError`: repeated participant identity
+- `ResponseValidationError`: invalid prompts, votes, responses, or normalizer output
 
-Raised when consensus cannot be reached within timeout.
+Participant exceptions are isolated into sanitized outcomes. Configuration and caller-input errors
+are raised directly.
 
-```python
-try:
-    result = engine.reach_consensus(agents, proposal)
-except ConsensusTimeoutError:
-    print("Consensus timeout")
-```
+## Compatibility import path
 
-### ConflictError
-
-Raised when unresolvable conflicts occur.
-
-```python
-try:
-    engine.resolve_conflict(conflict)
-except ConflictError:
-    print("Conflict resolution failed")
-```
-
-## Examples
-
-### Basic Consensus
-
-```python
-from agent_consensus import ConsensusEngine
-
-engine = ConsensusEngine()
-agents = [agent1, agent2, agent3]
-proposal = {"id": "p1", "content": "Test"}
-result = engine.reach_consensus(agents, proposal)
-print(f"Agreement: {result['agreement_level']}")
-```
-
-### Multi-Agent Coordination
-
-```python
-from agent_consensus import AgentCoordinator
-
-coordinator = AgentCoordinator()
-for agent in agents:
-    coordinator.register_agent(agent)
-    
-state = coordinator.coordinate_agents(agents)
-print(f"Coordination status: {state['status']}")
-```
-
-### Conflict Resolution
-
-```python
-conflict = {
-    "type": "voting_conflict",
-    "agents": ["agent_1", "agent_2"],
-    "votes": {"agent_1": "for", "agent_2": "against"}
-}
-result = coordinator.resolve_conflict(conflict)
-print(f"Resolved: {result['resolved']}")
-```
-
-## Best Practices
-
-1. **Always handle timeouts** - Set appropriate timeout values
-2. **Monitor metrics** - Track consensus performance
-3. **Use appropriate algorithms** - Choose based on your requirements
-4. **Handle conflicts gracefully** - Implement recovery strategies
-5. **Log all operations** - Enable comprehensive logging
-
-## Performance Characteristics
-
-| Operation | Time Complexity | Space Complexity |
-|-----------|-----------------|------------------|
-| Simple Majority | O(n) | O(n) |
-| Supermajority | O(n) | O(n) |
-| Unanimous | O(n) | O(n) |
-| BFT | O(n²) | O(n²) |
-
-Where n is the number of agents.
+`agent_consensus.multi_ai_consensus` re-exports the standalone types and aliases
+`MultiAIConsensus` to `ConsensusEngine` and `ConsensusResponse` to `ConsensusResult`. Provider-specific
+clients from the extracted source were not preserved because they depended on a private
+`helix-unified` service and were never present in the built 0.1 wheel.

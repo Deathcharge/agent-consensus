@@ -1,62 +1,59 @@
-# Contributing to Agent Consensus
+# Contributing
 
-We welcome contributions! This guide explains how to get started.
+Contributions that keep `agent-consensus` small, deterministic, provider-neutral, and auditable are
+welcome.
 
-## Getting Started
-
-1. Fork the repository
-2. Clone your fork: `git clone https://github.com/YOUR_USERNAME/agent-consensus.git`
-3. Create a branch: `git checkout -b feature/your-feature`
-4. Make changes and commit: `git commit -am 'Add feature'`
-5. Push to branch: `git push origin feature/your-feature`
-6. Submit a pull request
-
-## Development Setup
+## Set up
 
 ```bash
 git clone https://github.com/Deathcharge/agent-consensus.git
 cd agent-consensus
-pip install -r requirements-test.txt
-pytest tests/
+python -m venv .venv
 ```
 
-## Coding Standards
-
-- Follow PEP 8
-- Use type hints
-- Write docstrings
-- Keep lines under 100 characters
-- Use meaningful variable names
-
-## Testing
-
-All code must have tests:
+Activate the environment with your shell's normal command, then install the pinned contributor
+toolchain:
 
 ```bash
-pytest tests/ -v
-pytest tests/ --cov
+python -m pip install -r requirements-dev.txt
 ```
 
-## Documentation
+## Verify a change
 
-Update documentation for new features:
+```bash
+python -m ruff format --check .
+python -m ruff check .
+python -m mypy agent_consensus
+python -m pytest
+python -m build
+python -m twine check dist/*
+```
 
-- Update API_REFERENCE.md for new APIs
-- Update GETTING_STARTED.md for new patterns
-- Add examples for new features
+Tests enforce at least 95% branch-aware coverage of the package. Add behavior tests for error,
+timeout, cancellation, and budget paths when changing orchestration.
 
-## Pull Request Process
+## Design expectations
 
-1. Update tests and documentation
-2. Ensure all tests pass: `pytest tests/`
-3. Add a clear description of changes
-4. Reference any related issues
-5. Wait for review and feedback
+- Keep explicit decisions separate from supporting prose.
+- Preserve deterministic outcomes and participant order.
+- Bound new network, memory, retry, concurrency, persistence, and cost behavior.
+- Do not add provider credentials or private Helix dependencies.
+- Do not log prompts, response content, metadata, or exception messages.
+- Document public API and semantics in the same change.
+- Avoid adding a runtime dependency when the standard library is sufficient.
 
-## Code of Conduct
+Provider integrations should normally live in consuming applications or separately versioned adapter
+packages. A core integration proposal should include demand evidence, maintenance ownership, safe
+credential handling, deterministic tests, and cost/cancellation behavior.
 
-Please follow our [Code of Conduct](CODE_OF_CONDUCT.md).
+## Pull requests
 
-## Questions?
+Keep changes focused. Explain the user problem, behavioral contract, tests run, compatibility impact,
+and any security/privacy/cost tradeoff. CI must pass on every supported Python version.
 
-Open an issue or contact the maintainers.
+## Security issues
+
+Follow [SECURITY.md](SECURITY.md). Do not put secrets or private model content in an issue or test
+fixture.
+
+By contributing, you agree that your contribution is provided under the existing MIT license.

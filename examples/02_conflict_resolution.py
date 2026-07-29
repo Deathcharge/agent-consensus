@@ -1,20 +1,14 @@
-"""Example 2: Conflict Resolution"""
+"""Make participant authority explicit with weighted voting."""
 
-from agent_consensus import AgentCoordinator
+from agent_consensus import Vote, evaluate_votes
 
-coordinator = AgentCoordinator()
+votes = [
+    Vote("release-owner", "ship", weight=3),
+    Vote("reviewer", "hold", weight=1),
+]
 
-# Conflict scenario
-conflict = {
-    "type": "voting_conflict",
-    "agents": ["agent_1", "agent_2"],
-    "votes": {
-        "agent_1": "for",
-        "agent_2": "against"
-    }
-}
-
-print(f"Conflict Type: {conflict['type']}")
-print(f"Agents Involved: {conflict['agents']}")
-print(f"Resolution Strategy: Majority Vote")
-print(f"Result: agent_1 wins (1 vs 0 in favor)")
+result = evaluate_votes(votes, threshold=0.75, min_votes=2)
+print(f"Status: {result.status.value}")
+print(f"Choice: {result.choice}")
+for tally in result.tallies:
+    print(f"{tally.choice}: weight={tally.weight:g}")
