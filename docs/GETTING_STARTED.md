@@ -152,4 +152,6 @@ log or third-party monitor.
 - Read the exact [API reference](API_REFERENCE.md).
 - Understand threshold and failure behavior in the [decision model](CONSENSUS_ALGORITHMS.md).
 - Configure fail-closed application rules with [decision gates](DECISION_GATES.md).
+- Adapt structured policy, ethics, workflow, and release evidence with the
+  [integration cookbook](INTEGRATIONS.md).
 - Run every script in [`examples/`](../examples/).

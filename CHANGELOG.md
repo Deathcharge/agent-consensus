@@ -9,7 +9,9 @@ This project follows semantic versioning. Dates use ISO 8601.
 - Fail-closed operational decision policies with pass, veto, vocabulary, required-participant, and
   successful-weight rules
 - Stable decision statuses and reason codes with JSON-serializable audit verdicts
+- Versioned policy snapshots with optional IDs and deterministic SHA-256 content digests
 - A complete offline release-gate example and decision-gate integration guide
+- A provider-neutral policy-panel example and optional integration cookbook
 
 ### Changed
 

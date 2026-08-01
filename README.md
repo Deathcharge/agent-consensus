@@ -145,6 +145,7 @@ and other fail-closed workflows without changing the vote arithmetic.
 from agent_consensus import DecisionPolicy, DecisionStatus, evaluate_decision
 
 policy = DecisionPolicy(
+    policy_id="release/production-v1",
     pass_choices={"approve"},
     veto_choices={"reject"},
     allowed_choices={"approve", "reject", "hold"},
@@ -165,6 +166,10 @@ An explicit veto or an agreed non-pass choice is `blocked`. Missing reviewers, i
 successful weight, unexpected choices, or incomplete consensus are `indeterminate`. Both states
 fail closed; only `passed` permits the action. The library returns the verdict but never performs
 the protected action itself.
+
+Policies can carry a bounded ID and expose a deterministic SHA-256 digest of their normalized
+schema-versioned content. Verdict serialization includes both, making configuration drift visible
+without adding persistence, signing, or a policy service.
 
 ## Decision semantics
 
@@ -223,6 +228,7 @@ python examples/03_fault_tolerance.py
 python examples/04_monitoring.py
 python examples/05_multi_proposal.py
 python examples/06_release_gate.py
+python examples/07_policy_panel.py
 ```
 
 CI is configured to run formatting, linting, strict type checking, coverage, Python 3.10–3.14 tests,
@@ -266,6 +272,7 @@ core API.
 - [API reference](https://github.com/Deathcharge/agent-consensus/blob/main/docs/API_REFERENCE.md)
 - [Decision model](https://github.com/Deathcharge/agent-consensus/blob/main/docs/CONSENSUS_ALGORITHMS.md)
 - [Operational decision gates](https://github.com/Deathcharge/agent-consensus/blob/main/docs/DECISION_GATES.md)
+- [Integration cookbook](https://github.com/Deathcharge/agent-consensus/blob/main/docs/INTEGRATIONS.md)
 - [Licensing decision record](https://github.com/Deathcharge/agent-consensus/blob/main/docs/LICENSING.md)
 - [Release procedure](https://github.com/Deathcharge/agent-consensus/blob/main/docs/RELEASING.md)
 - [Productization record](https://github.com/Deathcharge/agent-consensus/blob/main/docs/PRODUCTIZATION.md)

@@ -27,7 +27,7 @@ python -m twine check dist/*
 ```
 
 Inspect the wheel and sdist, then install the exact wheel into a new virtual environment with
-`--no-deps`. Confirm the import path/version, run `pip check`, and run all six offline examples.
+`--no-deps`. Confirm the import path/version, run `pip check`, and run all seven offline examples.
 The CI matrix must also be green on every supported Python version before publication.
 
 ## 3. Configure publication without stored tokens

@@ -143,6 +143,11 @@ Bounded primary-source research informed the implementation:
   `agent-consistency` focused on verifying workflow outcomes rather than multi-reviewer approval.
   The defensible wedge here is bounded async evidence collection plus framework-neutral,
   deterministic operational gates—not another agent conversation framework.
+- Local read-only portfolio inspection found concrete optional producers: Samsarix Policy Engine
+  exposes allow/deny plus policy ID/version/digest; Samsarix Ethics exposes allow/deny/review plus
+  decision/policy identity; Samsarix Orchestration names approval/interrupt as a next milestone; and
+  LaunchGuard maintains signed release/readiness evidence. The integration cookbook maps these
+  public shapes without importing or modifying any sibling repository.
 - CI references reviewed immutable commits for `actions/checkout` and `actions/setup-python`, with
   human-readable version comments retained for dependency automation.
 - The public [PyPI project URL](https://pypi.org/project/agent-consensus/) returned HTTP 404 on
@@ -221,7 +226,7 @@ agent framework.
 - [x] Add prompt, content, participant, concurrency, and requested token caps.
 - [x] Return auditable typed tallies/outcomes without implicit persistence.
 - [x] Replace mock-only tests with production unit and integration tests.
-- [x] Make all six examples execute real library behavior offline.
+- [x] Make all seven examples execute real library behavior offline.
 - [x] Add deterministic pass/veto/required-party/vocabulary/weight policy evaluation with auditable
   reason codes.
 - [x] Consolidate build and quality configuration in `pyproject.toml`.
@@ -268,6 +273,8 @@ agent framework.
 - Defined a clean portfolio boundary with `neural-mesh`; both repositories remain standalone.
 - Added a framework-neutral operational decision gate, complete release-gate example, stable reason
   codes, and explicit host-enforcement guidance.
+- Added stable policy IDs/digests plus a provider-neutral policy-panel example and cookbook grounded
+  in read-only inspection of real optional producer contracts.
 - Closed merged-review findings covering shared validation, immutable hashing, metadata tests,
   alias normalization, documentation accuracy, least-privilege release guidance, and immutable CI
   action references.
@@ -319,13 +326,13 @@ packaging defects.
 | `python -m ruff format --check .` | Exit 0; 17 files already formatted |
 | `python -m ruff check .` | Exit 0; all checks passed |
 | `python -m mypy agent_consensus` | Exit 0; no issues in 6 source files |
-| `python -m pytest` | Exit 0; 74 passed; 99.61% branch-aware coverage (95% required) |
+| `python -m pytest` | Exit 0; 79 passed; 99.62% branch-aware coverage (95% required) |
 | `python -m build --outdir <fresh-temp>/dist` | Exit 0; built the sdist, then built the pure-Python wheel from that sdist |
 | `python -m twine check <fresh-temp>/dist/*` | Wheel and sdist passed |
 | `<fresh-temp>/wheel-env/Scripts/python -m pip install --no-deps <wheel>` | Exit 0; installed `agent-consensus-0.2.0` with no dependencies |
-| Installed API smoke outside checkout | Exit 0; printed `0.2.0 passed` after evaluating a real `DecisionPolicy` |
+| Installed API smoke outside checkout | Exit 0; serialized schema-v1 policy ID and the stable digest vector `3db772...fa71c` |
 | `<fresh-temp>/wheel-env/Scripts/python -m pip check` | Exit 0; no broken requirements |
-| Installed-wheel execution of `examples/*.py` | All six examples exited 0; release gate printed `gate=passed` and `policy_satisfied` |
+| Installed-wheel execution of `examples/*.py` | All seven examples exited 0; release and policy-panel gates passed with source references preserved |
 
 Exact-head artifact digests belong in the external pull-request or release evidence rather than
 inside the sdist itself: embedding a newly calculated sdist digest changes that artifact. The local

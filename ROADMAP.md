@@ -26,8 +26,8 @@ adoption remain owner-controlled decisions.
 
 ## Highest-value product work
 
-1. Add a framework-neutral adapter cookbook for one or two demanded ecosystems without runtime
-   dependencies.
+1. Prove the documented policy-panel recipe in a separate package consumer with a pinned producer
+   version and a versioned contract fixture.
 2. Add property-based invariants for policy precedence, normalization, weight arithmetic, and input
    ordering.
 3. Define a small versioned JSON Schema for persisted consensus/verdict audit records if a real
