@@ -331,9 +331,10 @@ Exact-head artifact digests belong in the external pull-request or release evide
 inside the sdist itself: embedding a newly calculated sdist digest changes that artifact. The local
 verification retained both artifacts in a GUID-named system temporary directory for inspection.
 
-Not yet available for this exact branch head: GitHub-hosted Python 3.10–3.14/Linux/Windows checks,
-because they require the focused branch to be pushed. TestPyPI/PyPI publication, a real external
-consumer, and paid-provider calls remain intentionally outside local verification.
+GitHub Actions on draft PR #12 passed quality, Linux Python 3.10–3.14, Windows Python 3.14, package
+build/check, installed-wheel, and all-example jobs for implementation head `4ff499b`. TestPyPI/PyPI
+publication, a real external consumer, and paid-provider calls remain intentionally outside local
+verification.
 
 ## Deferred work and rationale
 
@@ -373,8 +374,8 @@ consumer, and paid-provider calls remain intentionally outside local verificatio
   must use non-blocking clients or explicitly move blocking work to a bounded thread executor.
 - Result metadata can be non-JSON or sensitive because it is caller-owned.
 - Public package-index installation evidence does not exist until the owner exercises the
-  publication gates. Hosted CI evidence exists for the merged 0.2 release-candidate work; the new
-  decision-gate branch requires its own exact-head run before merge.
+  publication gates. Hosted CI evidence exists for both the merged 0.2 release-candidate work and
+  the decision-gate implementation head on draft PR #12.
 
 ## Distribution and sustainability
 
