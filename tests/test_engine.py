@@ -318,12 +318,25 @@ def test_static_minimum_vote_count_is_validated() -> None:
 
 
 @pytest.mark.asyncio
-async def test_normalizer_contract_is_validated() -> None:
+@pytest.mark.parametrize("normalized", ["", "   "])
+async def test_normalizer_contract_is_validated(normalized: str) -> None:
     engine = ConsensusEngine(
         [Participant("one", responder("yes"))],
         config=ConsensusConfig(min_successful=1),
-        normalizer=lambda choice: "",
+        normalizer=lambda choice: normalized,
     )
 
     with pytest.raises(ResponseValidationError, match="normalizer"):
+        await engine.run("review")
+
+
+@pytest.mark.asyncio
+async def test_normalizer_output_size_is_bounded() -> None:
+    engine = ConsensusEngine(
+        [Participant("one", responder("yes"))],
+        config=ConsensusConfig(min_successful=1),
+        normalizer=lambda choice: "x" * 257,
+    )
+
+    with pytest.raises(ResponseValidationError, match="normalizer output"):
         await engine.run("review")

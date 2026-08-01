@@ -126,6 +126,13 @@ def test_response_defensively_copies_metadata() -> None:
     assert response.metadata["source"] == "local"
 
 
+def test_response_hash_ignores_unhashable_metadata() -> None:
+    first = ParticipantResponse(choice="yes", metadata={"trace": ["local"]})
+    same_vote = ParticipantResponse(choice="yes", metadata={"trace": ["other"]})
+
+    assert hash(first) == hash(same_vote)
+
+
 def test_participant_configuration_is_validated() -> None:
     async def valid(prompt: str, *, max_tokens: int) -> ParticipantResponse:
         del prompt, max_tokens
@@ -185,9 +192,20 @@ def test_normalize_choice_only_changes_case_and_whitespace() -> None:
         normalize_choice("   ")
 
 
-def test_result_is_json_serializable_with_json_metadata() -> None:
+def test_result_is_json_serializable() -> None:
     result = evaluate_votes([Vote("a", "yes")])
 
     encoded = json.dumps(result.to_dict(), sort_keys=True)
     assert '"status": "agreed"' in encoded
     assert '"participant": "a"' in encoded
+
+
+def test_response_is_json_serializable_with_json_metadata() -> None:
+    response = ParticipantResponse(
+        choice="yes",
+        metadata={"trace_id": "local-1", "labels": ["safe"]},
+    )
+
+    encoded = json.dumps(response.to_dict(), sort_keys=True)
+    assert '"trace_id": "local-1"' in encoded
+    assert '"labels": ["safe"]' in encoded
