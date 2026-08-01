@@ -97,6 +97,41 @@ evaluate_votes(
 Synchronously evaluates already collected votes. Duplicate voter names are rejected. Because every
 input is a collected vote, this helper has no error or timeout outcomes.
 
+## DecisionPolicy
+
+```python
+DecisionPolicy(
+    pass_choices: Collection[str] = {"approve"},
+    veto_choices: Collection[str] = {},
+    allowed_choices: Collection[str] | None = None,
+    required_participants: Collection[str] = {},
+    min_successful_weight: float = 0.0,
+)
+```
+
+Immutable operational rules applied after consensus evaluation. Choice configuration matches
+`ChoiceTally.normalized_choice` exactly. `pass_choices` cannot be empty; pass and veto choices
+cannot overlap; and an allowed vocabulary, when supplied, must include all pass and veto choices.
+
+## `evaluate_decision`
+
+```python
+evaluate_decision(
+    consensus: ConsensusResult,
+    policy: DecisionPolicy,
+) -> DecisionVerdict
+```
+
+Returns `passed` only for an agreed pass choice when all configured evidence rules are satisfied.
+An explicit veto or agreed non-pass choice returns `blocked`. Missing required participants,
+insufficient successful weight, an unexpected choice, quorum failure, or no consensus returns
+`indeterminate` unless blocking evidence is also present.
+
+`DecisionVerdict` exposes stable reason codes, the normalized winning choice, sorted veto and
+unavailable-participant lists, unexpected choices, the configured weight requirement, the complete
+applied policy snapshot, the complete underlying `ConsensusResult`, a `passed` convenience
+property, and `to_dict()`.
+
 ## Vote
 
 ```python
@@ -127,6 +162,12 @@ Important fields:
 `ConsensusStatus` values: `agreed`, `no_consensus`, `quorum_failed`.
 
 `ResponseStatus` values: `success`, `error`, `timeout`.
+
+`DecisionStatus` values: `passed`, `blocked`, `indeterminate`.
+
+`DecisionReason` values: `policy_satisfied`, `veto_cast`, `winning_choice_not_permitted`,
+`required_participant_unavailable`, `successful_weight_below_minimum`, `unexpected_choice`,
+`quorum_failed`, and `no_consensus`.
 
 ## Exceptions
 

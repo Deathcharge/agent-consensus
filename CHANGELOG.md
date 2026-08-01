@@ -2,6 +2,22 @@
 
 This project follows semantic versioning. Dates use ISO 8601.
 
+## Unreleased
+
+### Added
+
+- Fail-closed operational decision policies with pass, veto, vocabulary, required-participant, and
+  successful-weight rules
+- Stable decision statuses and reason codes with JSON-serializable audit verdicts
+- A complete offline release-gate example and decision-gate integration guide
+
+### Changed
+
+- Pinned CI actions to reviewed immutable commit SHAs
+- Consolidated threshold and quorum-setting validation across public entry points
+- Made immutable participant responses safely hashable without hashing caller-owned metadata
+- Corrected review-discovered documentation and metadata-serialization coverage gaps
+
 ## 0.2.0 - 2026-07-28
 
 ### Added

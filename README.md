@@ -22,8 +22,9 @@ job:
 1. ask independent participants concurrently, within explicit limits;
 2. collect an explicit `choice` from each successful participant;
 3. normalize only casing and whitespace by default;
-4. apply weighted threshold and quorum rules; and
-5. return every tally, failure, timeout, duration, and reported token count.
+4. apply weighted threshold and quorum rules;
+5. enforce optional pass, veto, vocabulary, required-reviewer, and successful-weight rules; and
+6. return every tally, failure, timeout, duration, and reported token count.
 
 Participant failures remain in the agreement denominator. A surviving minority cannot look like a
 strong consensus merely because other participants failed.
@@ -134,9 +135,40 @@ asyncio.run(main())
 The engine does not retry. This keeps external side effects and API spending predictable; adapters
 that add retries should make them bounded and idempotent.
 
+## Turn consensus into an operational gate
+
+Consensus says what the group agreed on. A `DecisionPolicy` says whether the application may act on
+that evidence. This separation supports release approvals, output guardrails, routing decisions,
+and other fail-closed workflows without changing the vote arithmetic.
+
+```python
+from agent_consensus import DecisionPolicy, DecisionStatus, evaluate_decision
+
+policy = DecisionPolicy(
+    pass_choices={"approve"},
+    veto_choices={"reject"},
+    allowed_choices={"approve", "reject", "hold"},
+    required_participants={"security", "reliability"},
+    min_successful_weight=2,
+)
+verdict = evaluate_decision(result, policy)
+
+if verdict.status is DecisionStatus.PASSED:
+    deploy()
+elif verdict.status is DecisionStatus.BLOCKED:
+    stop(verdict.reasons)
+else:
+    request_review(verdict.reasons)
+```
+
+An explicit veto or an agreed non-pass choice is `blocked`. Missing reviewers, insufficient
+successful weight, unexpected choices, or incomplete consensus are `indeterminate`. Both states
+fail closed; only `passed` permits the action. The library returns the verdict but never performs
+the protected action itself.
+
 ## Decision semantics
 
-- The default threshold is two thirds of **all configured participant weight**.
+- The default threshold is two-thirds of **all configured participant weight**.
 - Quorum is a separate minimum count of successful responses (default: 2).
 - Timeouts and errors do not vote and still count in the total configured weight.
 - Equal leading weights are always `no_consensus`, even if a threshold of 0.5 is configured.
@@ -190,6 +222,7 @@ python examples/02_conflict_resolution.py
 python examples/03_fault_tolerance.py
 python examples/04_monitoring.py
 python examples/05_multi_proposal.py
+python examples/06_release_gate.py
 ```
 
 CI is configured to run formatting, linting, strict type checking, coverage, Python 3.10–3.14 tests,
@@ -211,6 +244,7 @@ for the exact owner-gated steps.
 
 - `agent_consensus/models.py`: immutable public configuration, input, outcome, and result types
 - `agent_consensus/core.py`: normalization, weighted tallying, async execution, and cancellation
+- `agent_consensus/policy.py`: fail-closed operational policy evaluation and reason codes
 - `agent_consensus/errors.py`: stable package-specific exceptions
 - `agent_consensus/multi_ai_consensus.py`: compatibility import path without external repository dependencies
 
@@ -231,6 +265,7 @@ core API.
 - [Getting started](https://github.com/Deathcharge/agent-consensus/blob/main/docs/GETTING_STARTED.md)
 - [API reference](https://github.com/Deathcharge/agent-consensus/blob/main/docs/API_REFERENCE.md)
 - [Decision model](https://github.com/Deathcharge/agent-consensus/blob/main/docs/CONSENSUS_ALGORITHMS.md)
+- [Operational decision gates](https://github.com/Deathcharge/agent-consensus/blob/main/docs/DECISION_GATES.md)
 - [Licensing decision record](https://github.com/Deathcharge/agent-consensus/blob/main/docs/LICENSING.md)
 - [Release procedure](https://github.com/Deathcharge/agent-consensus/blob/main/docs/RELEASING.md)
 - [Productization record](https://github.com/Deathcharge/agent-consensus/blob/main/docs/PRODUCTIZATION.md)
