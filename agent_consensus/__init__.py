@@ -19,6 +19,13 @@ from .models import (
     ResponseStatus,
     Vote,
 )
+from .policy import (
+    DecisionPolicy,
+    DecisionReason,
+    DecisionStatus,
+    DecisionVerdict,
+    evaluate_decision,
+)
 
 __version__ = "0.2.0"
 
@@ -30,6 +37,10 @@ __all__ = [
     "ConsensusError",
     "ConsensusResult",
     "ConsensusStatus",
+    "DecisionPolicy",
+    "DecisionReason",
+    "DecisionStatus",
+    "DecisionVerdict",
     "DuplicateParticipantError",
     "Participant",
     "ParticipantOutcome",
@@ -38,6 +49,7 @@ __all__ = [
     "ResponseStatus",
     "ResponseValidationError",
     "Vote",
+    "evaluate_decision",
     "evaluate_votes",
     "normalize_choice",
 ]

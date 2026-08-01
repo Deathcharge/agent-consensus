@@ -1,0 +1,281 @@
+"""Fail-closed operational policy evaluation for consensus results."""
+
+from __future__ import annotations
+
+import math
+from collections.abc import Collection
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any
+
+from .errors import ConfigurationError
+from .models import (
+    MAX_CHOICE_CHARACTERS,
+    MAX_NAME_CHARACTERS,
+    ConsensusResult,
+    ConsensusStatus,
+    ResponseStatus,
+)
+
+
+class DecisionStatus(str, Enum):
+    """Operational disposition after applying a policy to consensus evidence."""
+
+    PASSED = "passed"
+    BLOCKED = "blocked"
+    INDETERMINATE = "indeterminate"
+
+
+class DecisionReason(str, Enum):
+    """Stable machine-readable explanation for a decision verdict."""
+
+    POLICY_SATISFIED = "policy_satisfied"
+    VETO_CAST = "veto_cast"
+    WINNING_CHOICE_NOT_PERMITTED = "winning_choice_not_permitted"
+    REQUIRED_PARTICIPANT_UNAVAILABLE = "required_participant_unavailable"
+    SUCCESSFUL_WEIGHT_BELOW_MINIMUM = "successful_weight_below_minimum"
+    UNEXPECTED_CHOICE = "unexpected_choice"
+    QUORUM_FAILED = "quorum_failed"
+    NO_CONSENSUS = "no_consensus"
+
+
+def _freeze_strings(
+    values: Collection[str],
+    *,
+    field_name: str,
+    max_characters: int,
+    strip: bool,
+) -> frozenset[str]:
+    """Validate and defensively freeze one configured set of identifiers."""
+    if isinstance(values, (str, bytes)) or not isinstance(values, Collection):
+        raise ConfigurationError(f"{field_name} must be a collection of strings")
+
+    frozen: set[str] = set()
+    for value in values:
+        if not isinstance(value, str):
+            raise ConfigurationError(f"{field_name} must contain only strings")
+        canonical = value.strip() if strip else value
+        if not canonical:
+            raise ConfigurationError(f"{field_name} cannot contain empty strings")
+        if len(canonical) > max_characters:
+            raise ConfigurationError(
+                f"{field_name} values cannot exceed {max_characters} characters"
+            )
+        frozen.add(canonical)
+    return frozenset(frozen)
+
+
+@dataclass(frozen=True)
+class DecisionPolicy:
+    """Rules that turn consensus evidence into an operational gate verdict.
+
+    Choice values match ``ChoiceTally.normalized_choice`` exactly. With the
+    default consensus normalizer, configure lowercase, whitespace-collapsed
+    values such as ``"approve"`` and ``"reject"``.
+    """
+
+    pass_choices: Collection[str] = field(default_factory=lambda: frozenset({"approve"}))
+    veto_choices: Collection[str] = field(default_factory=frozenset)
+    allowed_choices: Collection[str] | None = None
+    required_participants: Collection[str] = field(default_factory=frozenset)
+    min_successful_weight: float = 0.0
+
+    def __post_init__(self) -> None:
+        pass_choices = _freeze_strings(
+            self.pass_choices,
+            field_name="pass_choices",
+            max_characters=MAX_CHOICE_CHARACTERS,
+            strip=False,
+        )
+        if not pass_choices:
+            raise ConfigurationError("pass_choices must contain at least one choice")
+        veto_choices = _freeze_strings(
+            self.veto_choices,
+            field_name="veto_choices",
+            max_characters=MAX_CHOICE_CHARACTERS,
+            strip=False,
+        )
+        allowed_choices = (
+            None
+            if self.allowed_choices is None
+            else _freeze_strings(
+                self.allowed_choices,
+                field_name="allowed_choices",
+                max_characters=MAX_CHOICE_CHARACTERS,
+                strip=False,
+            )
+        )
+        required_participants = _freeze_strings(
+            self.required_participants,
+            field_name="required_participants",
+            max_characters=MAX_NAME_CHARACTERS,
+            strip=True,
+        )
+
+        if pass_choices & veto_choices:
+            raise ConfigurationError("pass_choices and veto_choices must not overlap")
+        if allowed_choices is not None and not pass_choices | veto_choices <= allowed_choices:
+            raise ConfigurationError(
+                "allowed_choices must include every configured pass and veto choice"
+            )
+        if (
+            isinstance(self.min_successful_weight, bool)
+            or not isinstance(self.min_successful_weight, (int, float))
+            or not math.isfinite(self.min_successful_weight)
+            or self.min_successful_weight < 0
+        ):
+            raise ConfigurationError("min_successful_weight must be finite and non-negative")
+
+        object.__setattr__(self, "pass_choices", pass_choices)
+        object.__setattr__(self, "veto_choices", veto_choices)
+        object.__setattr__(self, "allowed_choices", allowed_choices)
+        object.__setattr__(self, "required_participants", required_participants)
+
+    def to_dict(self) -> dict[str, Any]:
+        """Return a deterministic JSON-compatible policy snapshot."""
+        return {
+            "pass_choices": sorted(self.pass_choices),
+            "veto_choices": sorted(self.veto_choices),
+            "allowed_choices": (
+                None if self.allowed_choices is None else sorted(self.allowed_choices)
+            ),
+            "required_participants": sorted(self.required_participants),
+            "min_successful_weight": self.min_successful_weight,
+        }
+
+
+@dataclass(frozen=True)
+class DecisionVerdict:
+    """Auditable operational verdict and the consensus evidence behind it."""
+
+    status: DecisionStatus
+    reasons: tuple[DecisionReason, ...]
+    policy: DecisionPolicy
+    consensus: ConsensusResult
+    normalized_choice: str | None
+    veto_participants: tuple[str, ...]
+    unavailable_required_participants: tuple[str, ...]
+    unexpected_choices: tuple[str, ...]
+    required_successful_weight: float
+
+    @property
+    def passed(self) -> bool:
+        """Whether the caller may proceed under the configured policy."""
+        return self.status is DecisionStatus.PASSED
+
+    def to_dict(self) -> dict[str, Any]:
+        """Return the verdict and its evidence as a JSON-compatible dictionary."""
+        return {
+            "status": self.status.value,
+            "reasons": [reason.value for reason in self.reasons],
+            "policy": self.policy.to_dict(),
+            "normalized_choice": self.normalized_choice,
+            "veto_participants": list(self.veto_participants),
+            "unavailable_required_participants": list(self.unavailable_required_participants),
+            "unexpected_choices": list(self.unexpected_choices),
+            "successful_weight": self.consensus.successful_weight,
+            "required_successful_weight": self.required_successful_weight,
+            "consensus": self.consensus.to_dict(),
+        }
+
+
+def evaluate_decision(
+    consensus: ConsensusResult,
+    policy: DecisionPolicy,
+) -> DecisionVerdict:
+    """Apply an operational policy without altering consensus arithmetic.
+
+    A veto or an agreed non-pass choice produces ``BLOCKED``. Missing or
+    unrecognized evidence produces ``INDETERMINATE``. Only an agreed pass
+    choice with every availability and vocabulary rule satisfied produces
+    ``PASSED``.
+    """
+    if not isinstance(consensus, ConsensusResult):
+        raise TypeError("consensus must be a ConsensusResult")
+    if not isinstance(policy, DecisionPolicy):
+        raise TypeError("policy must be a DecisionPolicy")
+
+    choice_by_participant = {
+        participant: tally.normalized_choice
+        for tally in consensus.tallies
+        for participant in tally.participants
+    }
+    successful_participants = {
+        outcome.participant
+        for outcome in consensus.outcomes
+        if outcome.status is ResponseStatus.SUCCESS and outcome.response is not None
+    }
+    veto_participants = tuple(
+        sorted(
+            participant
+            for participant, choice in choice_by_participant.items()
+            if choice in policy.veto_choices
+        )
+    )
+    unavailable_required = tuple(
+        sorted(set(policy.required_participants) - successful_participants)
+    )
+    unexpected_choices = (
+        ()
+        if policy.allowed_choices is None
+        else tuple(
+            sorted(
+                tally.normalized_choice
+                for tally in consensus.tallies
+                if tally.normalized_choice not in policy.allowed_choices
+            )
+        )
+    )
+    normalized_choice = (
+        consensus.tallies[0].normalized_choice
+        if consensus.status is ConsensusStatus.AGREED and consensus.tallies
+        else None
+    )
+
+    reasons: list[DecisionReason] = []
+    if veto_participants:
+        reasons.append(DecisionReason.VETO_CAST)
+    if normalized_choice is not None and normalized_choice not in policy.pass_choices:
+        reasons.append(DecisionReason.WINNING_CHOICE_NOT_PERMITTED)
+    if unavailable_required:
+        reasons.append(DecisionReason.REQUIRED_PARTICIPANT_UNAVAILABLE)
+    if consensus.successful_weight < policy.min_successful_weight:
+        reasons.append(DecisionReason.SUCCESSFUL_WEIGHT_BELOW_MINIMUM)
+    if unexpected_choices:
+        reasons.append(DecisionReason.UNEXPECTED_CHOICE)
+    if consensus.status is ConsensusStatus.QUORUM_FAILED:
+        reasons.append(DecisionReason.QUORUM_FAILED)
+    elif consensus.status is ConsensusStatus.NO_CONSENSUS:
+        reasons.append(DecisionReason.NO_CONSENSUS)
+
+    blocked = bool(veto_participants) or DecisionReason.WINNING_CHOICE_NOT_PERMITTED in reasons
+    incomplete = any(
+        reason
+        in {
+            DecisionReason.REQUIRED_PARTICIPANT_UNAVAILABLE,
+            DecisionReason.SUCCESSFUL_WEIGHT_BELOW_MINIMUM,
+            DecisionReason.UNEXPECTED_CHOICE,
+            DecisionReason.QUORUM_FAILED,
+            DecisionReason.NO_CONSENSUS,
+        }
+        for reason in reasons
+    )
+    if blocked:
+        status = DecisionStatus.BLOCKED
+    elif incomplete:
+        status = DecisionStatus.INDETERMINATE
+    else:
+        status = DecisionStatus.PASSED
+        reasons.append(DecisionReason.POLICY_SATISFIED)
+
+    return DecisionVerdict(
+        status=status,
+        reasons=tuple(reasons),
+        policy=policy,
+        consensus=consensus,
+        normalized_choice=normalized_choice,
+        veto_participants=veto_participants,
+        unavailable_required_participants=unavailable_required,
+        unexpected_choices=unexpected_choices,
+        required_successful_weight=policy.min_successful_weight,
+    )
