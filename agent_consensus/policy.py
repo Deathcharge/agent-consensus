@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 import math
+import re
 from collections.abc import Collection
 from dataclasses import dataclass, field
 from enum import Enum
@@ -16,6 +19,10 @@ from .models import (
     ConsensusStatus,
     ResponseStatus,
 )
+
+POLICY_SCHEMA_VERSION = 1
+VERDICT_SCHEMA_VERSION = 1
+_POLICY_ID_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}")
 
 
 class DecisionStatus(str, Enum):
@@ -74,6 +81,7 @@ class DecisionPolicy:
     values such as ``"approve"`` and ``"reject"``.
     """
 
+    policy_id: str | None = None
     pass_choices: Collection[str] = field(default_factory=lambda: frozenset({"approve"}))
     veto_choices: Collection[str] = field(default_factory=frozenset)
     allowed_choices: Collection[str] | None = None
@@ -81,6 +89,14 @@ class DecisionPolicy:
     min_successful_weight: float = 0.0
 
     def __post_init__(self) -> None:
+        policy_id = self.policy_id
+        if policy_id is not None and (
+            not isinstance(policy_id, str) or not _POLICY_ID_PATTERN.fullmatch(policy_id)
+        ):
+            raise ConfigurationError(
+                "policy_id must start with an ASCII alphanumeric character and contain at most "
+                "128 ASCII alphanumeric, '.', '_', ':', '/', or '-' characters"
+            )
         pass_choices = _freeze_strings(
             self.pass_choices,
             field_name="pass_choices",
@@ -130,10 +146,13 @@ class DecisionPolicy:
         object.__setattr__(self, "veto_choices", veto_choices)
         object.__setattr__(self, "allowed_choices", allowed_choices)
         object.__setattr__(self, "required_participants", required_participants)
+        object.__setattr__(self, "min_successful_weight", float(self.min_successful_weight))
 
-    def to_dict(self) -> dict[str, Any]:
-        """Return a deterministic JSON-compatible policy snapshot."""
+    def _content_dict(self) -> dict[str, Any]:
+        """Return the canonical policy content covered by the digest."""
         return {
+            "schema_version": POLICY_SCHEMA_VERSION,
+            "policy_id": self.policy_id,
             "pass_choices": sorted(self.pass_choices),
             "veto_choices": sorted(self.veto_choices),
             "allowed_choices": (
@@ -142,6 +161,22 @@ class DecisionPolicy:
             "required_participants": sorted(self.required_participants),
             "min_successful_weight": self.min_successful_weight,
         }
+
+    @property
+    def digest(self) -> str:
+        """Return a deterministic SHA-256 digest of the complete policy content."""
+        payload = json.dumps(
+            self._content_dict(),
+            ensure_ascii=False,
+            allow_nan=False,
+            separators=(",", ":"),
+            sort_keys=True,
+        ).encode("utf-8")
+        return hashlib.sha256(payload).hexdigest()
+
+    def to_dict(self) -> dict[str, Any]:
+        """Return a deterministic JSON-compatible policy snapshot."""
+        return {**self._content_dict(), "digest": self.digest}
 
 
 @dataclass(frozen=True)
@@ -166,6 +201,7 @@ class DecisionVerdict:
     def to_dict(self) -> dict[str, Any]:
         """Return the verdict and its evidence as a JSON-compatible dictionary."""
         return {
+            "schema_version": VERDICT_SCHEMA_VERSION,
             "status": self.status.value,
             "reasons": [reason.value for reason in self.reasons],
             "policy": self.policy.to_dict(),

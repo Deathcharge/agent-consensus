@@ -101,6 +101,7 @@ input is a collected vote, this helper has no error or timeout outcomes.
 
 ```python
 DecisionPolicy(
+    policy_id: str | None = None,
     pass_choices: Collection[str] = {"approve"},
     veto_choices: Collection[str] = {},
     allowed_choices: Collection[str] | None = None,
@@ -112,6 +113,11 @@ DecisionPolicy(
 Immutable operational rules applied after consensus evaluation. Choice configuration matches
 `ChoiceTally.normalized_choice` exactly. `pass_choices` cannot be empty; pass and veto choices
 cannot overlap; and an allowed vocabulary, when supplied, must include all pass and veto choices.
+`policy_id` is an optional bounded identifier for deployment configuration. `digest` is a
+deterministic SHA-256 digest over schema version 1 and the complete normalized policy content;
+`to_dict()` includes both for audit and interchange. The digest input is UTF-8 JSON with keys
+sorted, compact `,`/`:` separators, Unicode preserved, finite weights normalized to JSON numbers,
+and no `digest` field. Set-like values are sorted before encoding.
 
 ## `evaluate_decision`
 

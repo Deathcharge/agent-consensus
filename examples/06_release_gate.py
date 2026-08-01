@@ -42,6 +42,7 @@ async def main() -> None:
     )
     consensus = await engine.run("Should release 1.4 proceed?")
     policy = DecisionPolicy(
+        policy_id="release/production-v1",
         pass_choices={"approve"},
         veto_choices={"reject"},
         allowed_choices={"approve", "hold", "reject"},
@@ -52,6 +53,7 @@ async def main() -> None:
 
     print(f"consensus={consensus.status.value} choice={consensus.choice}")
     print(f"gate={verdict.status.value}")
+    print(f"policy={policy.policy_id} digest={policy.digest[:12]}")
     print(f"reasons={[reason.value for reason in verdict.reasons]}")
 
 

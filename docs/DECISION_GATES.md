@@ -20,6 +20,7 @@ consensus = evaluate_votes(
     min_votes=3,
 )
 policy = DecisionPolicy(
+    policy_id="release/production-v1",
     pass_choices={"approve"},
     veto_choices={"reject"},
     allowed_choices={"approve", "hold", "reject"},
@@ -68,8 +69,10 @@ fields into a result and treat `evaluate_decision` as evidence verification.
 - Route `BLOCKED` and `INDETERMINATE` to different operational handling if useful, but fail closed
   for both.
 - Enforce the verdict in the same trusted control plane that owns the protected action.
+- Assign a versioned `policy_id` and retain its deterministic `digest` with deployment configuration.
 - Persist or log `verdict.to_dict()` only after redacting response content and metadata. The payload
-  includes a deterministic snapshot of the applied policy for audit.
+  includes schema versions, the applied policy snapshot, and its SHA-256 digest for audit. A digest
+  detects content differences but is not a signature; authenticate policy distribution separately.
 - Version policy configuration alongside the deployment or workflow that consumes it.
 - Test custom normalizers and allowed vocabularies with casing, Unicode, whitespace, and unknown
   choices.
