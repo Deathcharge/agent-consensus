@@ -30,7 +30,23 @@ def panel_normalizer(choice: str) -> str:
 ```
 
 Configure `allowed_choices={"approve", "hold", "reject"}` so a new upstream outcome fails closed
-until the mapping and policy are reviewed.
+until the mapping and policy are reviewed. The same normalizer must be supplied when evaluating the
+panel; `allowed_choices` is checked against normalized choices:
+
+```python
+from agent_consensus import DecisionPolicy, Vote, evaluate_decision, evaluate_votes
+
+votes = [Vote("authorization", "allow"), Vote("ethics", "allow")]
+consensus = evaluate_votes(votes, min_votes=2, normalizer=panel_normalizer)
+verdict = evaluate_decision(
+    consensus,
+    DecisionPolicy(
+        pass_choices={"approve"},
+        veto_choices={"reject"},
+        allowed_choices={"approve", "hold", "reject"},
+    ),
+)
+```
 
 ## Structured policy decisions
 
@@ -38,18 +54,26 @@ An action-policy engine can become one independent participant. Evaluate the pol
 the adapter; do not let consensus weaken an individual policy's deny semantics.
 
 ```python
-async def authorization_review(prompt: str, *, max_tokens: int) -> ParticipantResponse:
-    del prompt, max_tokens
-    decision = action_policy.evaluate(request)
-    return ParticipantResponse(
-        choice=decision.effect.value,  # allow or deny
-        metadata={
-            "policy_id": decision.policy_id,
-            "policy_version": decision.policy_version,
-            "policy_digest": decision.policy_digest,
-            "request_id": decision.request_id,
-        },
-    )
+from agent_consensus import ParticipantResponse
+
+
+def make_authorization_review(action_policy, request):
+    """Bind one policy engine and request to a fresh participant adapter."""
+
+    async def authorization_review(prompt: str, *, max_tokens: int) -> ParticipantResponse:
+        del prompt, max_tokens
+        decision = action_policy.evaluate(request)
+        return ParticipantResponse(
+            choice=decision.effect.value,  # allow or deny
+            metadata={
+                "policy_id": decision.policy_id,
+                "policy_version": decision.policy_version,
+                "policy_digest": decision.policy_digest,
+                "request_id": decision.request_id,
+            },
+        )
+
+    return authorization_review
 ```
 
 Do not copy a policy decision's explanatory reason into metadata by default; it may disclose request
@@ -60,17 +84,25 @@ or rule details. Retain bounded identifiers and keep the source audit record in 
 An ethics evaluator with `allow`, `deny`, and `review` outcomes can be adapted independently:
 
 ```python
-async def ethics_review(prompt: str, *, max_tokens: int) -> ParticipantResponse:
-    del prompt, max_tokens
-    decision = ethics_engine.evaluate(context)
-    return ParticipantResponse(
-        choice=decision.outcome.value,
-        metadata={
-            "decision_id": decision.decision_id,
-            "policy_id": decision.policy_id,
-            "policy_version": decision.policy_version,
-        },
-    )
+from agent_consensus import ParticipantResponse
+
+
+def make_ethics_review(ethics_engine, context):
+    """Bind one evaluator and context to a fresh participant adapter."""
+
+    async def ethics_review(prompt: str, *, max_tokens: int) -> ParticipantResponse:
+        del prompt, max_tokens
+        decision = ethics_engine.evaluate(context)
+        return ParticipantResponse(
+            choice=decision.outcome.value,
+            metadata={
+                "decision_id": decision.decision_id,
+                "policy_id": decision.policy_id,
+                "policy_version": decision.policy_version,
+            },
+        )
+
+    return ethics_review
 ```
 
 Configure `deny` as a veto (`reject` after normalization). A unanimous or weighted majority must not

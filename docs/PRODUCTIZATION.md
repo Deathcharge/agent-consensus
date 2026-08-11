@@ -328,7 +328,7 @@ packaging defects.
 | `python -m ruff format --check .` | Exit 0; 17 files already formatted |
 | `python -m ruff check .` | Exit 0; all checks passed |
 | `python -m mypy agent_consensus` | Exit 0; no issues in 6 source files |
-| `python -m pytest` | Exit 0; 79 passed; 99.62% branch-aware coverage (95% required) |
+| `python -m pytest` | Exit 0; 80 passed; 99.62% branch-aware coverage (95% required) |
 | `python -m build --outdir <fresh-temp>/dist` | Exit 0; built the sdist, then built the pure-Python wheel from that sdist |
 | `python -m twine check <fresh-temp>/dist/*` | Wheel and sdist passed |
 | `<fresh-temp>/wheel-env/Scripts/python -m pip install --no-deps <wheel>` | Exit 0; installed `agent-consensus-0.2.0` with no dependencies |
@@ -341,7 +341,8 @@ inside the sdist itself: embedding a newly calculated sdist digest changes that 
 verification retained both artifacts in a GUID-named system temporary directory for inspection.
 
 GitHub Actions on draft PR #12 passed quality, Linux Python 3.10–3.14, Windows Python 3.14, package
-build/check, installed-wheel, and all-example jobs for implementation head `4ff499b`. TestPyPI/PyPI
+build/check, installed-wheel, and all-example jobs for implementation head
+`4ff499b1260821f5b71f5c1247ff5d869eb442db`. TestPyPI/PyPI
 publication, a real external consumer, and paid-provider calls remain intentionally outside local
 verification.
 

@@ -313,7 +313,7 @@ def test_budget_must_allocate_at_least_one_token_each() -> None:
 def test_static_minimum_vote_count_is_validated() -> None:
     from agent_consensus import evaluate_votes
 
-    with pytest.raises(ConfigurationError, match="min_successful"):
+    with pytest.raises(ConfigurationError, match="min_votes must be at least 1"):
         evaluate_votes([], min_votes=0)
 
 

@@ -4,6 +4,7 @@ from .core import ConsensusEngine, evaluate_votes, normalize_choice
 from .errors import (
     ConfigurationError,
     ConsensusError,
+    DecisionInputError,
     DuplicateParticipantError,
     ResponseValidationError,
 )
@@ -37,6 +38,7 @@ __all__ = [
     "ConsensusError",
     "ConsensusResult",
     "ConsensusStatus",
+    "DecisionInputError",
     "DecisionPolicy",
     "DecisionReason",
     "DecisionStatus",

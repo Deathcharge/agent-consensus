@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
-from .errors import ConfigurationError
+from .errors import ConfigurationError, DecisionInputError
 from .models import (
     MAX_CHOICE_CHARACTERS,
     MAX_NAME_CHARACTERS,
@@ -44,6 +44,17 @@ class DecisionReason(str, Enum):
     UNEXPECTED_CHOICE = "unexpected_choice"
     QUORUM_FAILED = "quorum_failed"
     NO_CONSENSUS = "no_consensus"
+
+
+_INCOMPLETE_REASONS = frozenset(
+    {
+        DecisionReason.REQUIRED_PARTICIPANT_UNAVAILABLE,
+        DecisionReason.SUCCESSFUL_WEIGHT_BELOW_MINIMUM,
+        DecisionReason.UNEXPECTED_CHOICE,
+        DecisionReason.QUORUM_FAILED,
+        DecisionReason.NO_CONSENSUS,
+    }
+)
 
 
 def _freeze_strings(
@@ -130,7 +141,7 @@ class DecisionPolicy:
 
         if pass_choices & veto_choices:
             raise ConfigurationError("pass_choices and veto_choices must not overlap")
-        if allowed_choices is not None and not pass_choices | veto_choices <= allowed_choices:
+        if allowed_choices is not None and not (pass_choices | veto_choices) <= allowed_choices:
             raise ConfigurationError(
                 "allowed_choices must include every configured pass and veto choice"
             )
@@ -227,9 +238,9 @@ def evaluate_decision(
     ``PASSED``.
     """
     if not isinstance(consensus, ConsensusResult):
-        raise TypeError("consensus must be a ConsensusResult")
+        raise DecisionInputError("consensus must be a ConsensusResult")
     if not isinstance(policy, DecisionPolicy):
-        raise TypeError("policy must be a DecisionPolicy")
+        raise DecisionInputError("policy must be a DecisionPolicy")
 
     choice_by_participant = {
         participant: tally.normalized_choice
@@ -275,7 +286,12 @@ def evaluate_decision(
         reasons.append(DecisionReason.WINNING_CHOICE_NOT_PERMITTED)
     if unavailable_required:
         reasons.append(DecisionReason.REQUIRED_PARTICIPANT_UNAVAILABLE)
-    if consensus.successful_weight < policy.min_successful_weight:
+    if consensus.successful_weight < policy.min_successful_weight and not math.isclose(
+        consensus.successful_weight,
+        policy.min_successful_weight,
+        rel_tol=1e-12,
+        abs_tol=1e-12,
+    ):
         reasons.append(DecisionReason.SUCCESSFUL_WEIGHT_BELOW_MINIMUM)
     if unexpected_choices:
         reasons.append(DecisionReason.UNEXPECTED_CHOICE)
@@ -285,17 +301,7 @@ def evaluate_decision(
         reasons.append(DecisionReason.NO_CONSENSUS)
 
     blocked = bool(veto_participants) or DecisionReason.WINNING_CHOICE_NOT_PERMITTED in reasons
-    incomplete = any(
-        reason
-        in {
-            DecisionReason.REQUIRED_PARTICIPANT_UNAVAILABLE,
-            DecisionReason.SUCCESSFUL_WEIGHT_BELOW_MINIMUM,
-            DecisionReason.UNEXPECTED_CHOICE,
-            DecisionReason.QUORUM_FAILED,
-            DecisionReason.NO_CONSENSUS,
-        }
-        for reason in reasons
-    )
+    incomplete = bool(set(reasons) & _INCOMPLETE_REASONS)
     if blocked:
         status = DecisionStatus.BLOCKED
     elif incomplete:

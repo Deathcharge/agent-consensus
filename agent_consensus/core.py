@@ -166,7 +166,7 @@ def evaluate_votes(
     Failed participants are not representable in this synchronous helper. Use
     :class:`ConsensusEngine` when participant execution and failures matter.
     """
-    _validate_decision_settings(threshold, min_votes)
+    _validate_decision_settings(threshold, min_votes, quorum_field="min_votes")
     if not callable(normalizer):
         raise ConfigurationError("normalizer must be callable")
     collected = tuple(votes)

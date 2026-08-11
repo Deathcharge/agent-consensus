@@ -102,10 +102,10 @@ input is a collected vote, this helper has no error or timeout outcomes.
 ```python
 DecisionPolicy(
     policy_id: str | None = None,
-    pass_choices: Collection[str] = {"approve"},
-    veto_choices: Collection[str] = {},
+    pass_choices: Collection[str] = frozenset({"approve"}),
+    veto_choices: Collection[str] = frozenset(),
     allowed_choices: Collection[str] | None = None,
-    required_participants: Collection[str] = {},
+    required_participants: Collection[str] = frozenset(),
     min_successful_weight: float = 0.0,
 )
 ```
@@ -179,6 +179,7 @@ Important fields:
 
 - `ConsensusError`: base package exception
 - `ConfigurationError`: invalid bounds, thresholds, participants, or budgets
+- `DecisionInputError`: unsupported input types passed to decision evaluation (also a `TypeError`)
 - `DuplicateParticipantError`: repeated participant identity
 - `ResponseValidationError`: invalid prompts, votes, responses, or normalizer output
 

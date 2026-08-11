@@ -1,11 +1,13 @@
 """Tests for fail-closed operational decision policies."""
 
 import json
+from collections.abc import Callable
 
 import pytest
 
 from agent_consensus import (
     ConfigurationError,
+    DecisionInputError,
     DecisionPolicy,
     DecisionReason,
     DecisionStatus,
@@ -105,6 +107,18 @@ def test_insufficient_successful_weight_is_indeterminate() -> None:
 
     assert verdict.status is DecisionStatus.INDETERMINATE
     assert verdict.reasons == (DecisionReason.SUCCESSFUL_WEIGHT_BELOW_MINIMUM,)
+
+
+def test_successful_weight_boundary_tolerates_floating_point_roundoff() -> None:
+    consensus = evaluate_votes(
+        [Vote("authorization", "approve", 0.1), Vote("ethics", "approve", 0.7)],
+        min_votes=2,
+    )
+
+    verdict = evaluate_decision(consensus, DecisionPolicy(min_successful_weight=0.8))
+
+    assert consensus.successful_weight < 0.8
+    assert verdict.status is DecisionStatus.PASSED
 
 
 def test_unexpected_choice_fails_closed_even_with_approved_consensus() -> None:
@@ -210,6 +224,7 @@ def test_policy_digest_is_order_independent_and_content_sensitive() -> None:
 
 
 def test_policy_digest_has_a_stable_schema_v1_contract() -> None:
+    """Protect schema v1; a mismatch requires migration, not replacing this vector."""
     assert (
         DecisionPolicy(policy_id="contract/v1").digest
         == "3db772495f47ab90df60b74b8d2842d3976eaa37b2bca55445121868c27fa71c"
@@ -217,7 +232,7 @@ def test_policy_digest_has_a_stable_schema_v1_contract() -> None:
 
 
 @pytest.mark.parametrize(
-    "policy",
+    "build_policy",
     [
         lambda: DecisionPolicy(pass_choices=set()),
         lambda: DecisionPolicy(pass_choices="approve"),
@@ -234,15 +249,15 @@ def test_policy_digest_has_a_stable_schema_v1_contract() -> None:
         lambda: DecisionPolicy(policy_id=1),
     ],
 )
-def test_invalid_policy_is_rejected(policy: object) -> None:
+def test_invalid_policy_is_rejected(build_policy: Callable[[], DecisionPolicy]) -> None:
     with pytest.raises(ConfigurationError):
-        policy()  # type: ignore[operator]
+        build_policy()
 
 
 def test_evaluate_decision_rejects_wrong_input_types() -> None:
     consensus = evaluate_votes([Vote("a", "approve")])
 
-    with pytest.raises(TypeError, match="consensus"):
+    with pytest.raises(DecisionInputError, match="consensus"):
         evaluate_decision(None, DecisionPolicy())  # type: ignore[arg-type]
-    with pytest.raises(TypeError, match="policy"):
+    with pytest.raises(DecisionInputError, match="policy"):
         evaluate_decision(consensus, None)  # type: ignore[arg-type]

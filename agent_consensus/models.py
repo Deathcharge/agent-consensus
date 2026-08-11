@@ -278,7 +278,12 @@ class ConsensusResult:
 ChoiceNormalizer = Callable[[str], str]
 
 
-def _validate_decision_settings(threshold: float, min_successful: int) -> None:
+def _validate_decision_settings(
+    threshold: float,
+    min_successful: int,
+    *,
+    quorum_field: str = "min_successful",
+) -> None:
     """Validate the decision settings shared by both public entry points."""
     if (
         isinstance(threshold, bool)
@@ -288,6 +293,6 @@ def _validate_decision_settings(threshold: float, min_successful: int) -> None:
     ):
         raise ConfigurationError("threshold must be greater than 0 and at most 1")
     if isinstance(min_successful, bool) or not isinstance(min_successful, int):
-        raise ConfigurationError("min_successful must be an integer")
+        raise ConfigurationError(f"{quorum_field} must be an integer")
     if min_successful < 1:
-        raise ConfigurationError("min_successful must be at least 1")
+        raise ConfigurationError(f"{quorum_field} must be at least 1")
