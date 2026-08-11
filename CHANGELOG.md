@@ -16,6 +16,8 @@ This project follows semantic versioning. Dates use ISO 8601.
 ### Changed
 
 - Pinned CI actions to reviewed immutable commit SHAs
+- Updated the contributor test runner to pytest 9.0.3, closing CVE-2025-71176 in the pinned
+  development toolchain
 - Consolidated threshold and quorum-setting validation across public entry points
 - Made immutable participant responses safely hashable without hashing caller-owned metadata
 - Corrected review-discovered documentation and metadata-serialization coverage gaps

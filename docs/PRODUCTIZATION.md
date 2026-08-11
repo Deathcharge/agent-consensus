@@ -278,6 +278,8 @@ agent framework.
 - Closed merged-review findings covering shared validation, immutable hashing, metadata tests,
   alias normalization, documentation accuracy, least-privilege release guidance, and immutable CI
   action references.
+- Updated the pinned contributor test runner to pytest 9.0.3, the first patched release for
+  CVE-2025-71176; the affected tool is development-only and not present in the runtime wheel.
 
 ## 0.2 productization verification (2026-07-28)
 
