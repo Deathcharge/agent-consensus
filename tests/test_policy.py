@@ -2,11 +2,14 @@
 
 import json
 from collections.abc import Callable
+from dataclasses import replace
 
 import pytest
 
 from agent_consensus import (
     ConfigurationError,
+    ConsensusResult,
+    ConsensusStatus,
     DecisionInputError,
     DecisionPolicy,
     DecisionReason,
@@ -261,3 +264,45 @@ def test_evaluate_decision_rejects_wrong_input_types() -> None:
         evaluate_decision(None, DecisionPolicy())  # type: ignore[arg-type]
     with pytest.raises(DecisionInputError, match="policy"):
         evaluate_decision(consensus, None)  # type: ignore[arg-type]
+
+
+def test_evaluate_decision_rejects_inconsistent_agreed_evidence() -> None:
+    forged = ConsensusResult(
+        status=ConsensusStatus.AGREED,
+        choice=None,
+        agreement=1.0,
+        quorum_reached=False,
+        successful_count=0,
+        total_count=0,
+        successful_weight=0.0,
+        total_weight=0.0,
+        threshold=2 / 3,
+        min_successful=1,
+        reported_tokens_used=0,
+        token_usage_complete=False,
+        duration_ms=0.0,
+        tallies=(),
+        outcomes=(),
+    )
+
+    with pytest.raises(DecisionInputError, match="internally inconsistent"):
+        evaluate_decision(forged, DecisionPolicy())
+
+
+def test_evaluate_decision_rejects_individually_corrupted_builder_fields() -> None:
+    valid = evaluate_votes([Vote("security", "approve"), Vote("release", "approve")])
+    corrupted = (
+        replace(valid, choice=None),
+        replace(valid, agreement=0.0),
+        replace(valid, quorum_reached=False),
+        replace(valid, successful_count=0),
+        replace(valid, total_count=0),
+        replace(valid, successful_weight=0.0),
+        replace(valid, total_weight=0.0),
+        replace(valid, tallies=()),
+        replace(valid, outcomes=()),
+    )
+
+    for candidate in corrupted:
+        with pytest.raises(DecisionInputError, match="internally inconsistent"):
+            evaluate_decision(candidate, DecisionPolicy())

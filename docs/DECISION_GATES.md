@@ -61,7 +61,9 @@ the host system.
 
 `ConsensusResult` is an immutable public data model, not a signed receipt. Produce it with
 `evaluate_votes` or `ConsensusEngine` inside the trusted process. Do not deserialize attacker-chosen
-fields into a result and treat `evaluate_decision` as evidence verification.
+fields into a result and treat `evaluate_decision` as evidence verification. The decision evaluator
+rechecks the result's builder invariants and rejects internally contradictory evidence, but that
+structural check does not authenticate who produced a self-consistent result.
 
 ## Safe integration pattern
 

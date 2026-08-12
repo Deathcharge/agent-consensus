@@ -226,6 +226,161 @@ class DecisionVerdict:
         }
 
 
+def _is_consensus_evidence_consistent(consensus: ConsensusResult) -> bool:
+    """Check the builder invariants relied on by an operational decision gate."""
+
+    if (
+        not isinstance(consensus.status, ConsensusStatus)
+        or not isinstance(consensus.quorum_reached, bool)
+        or isinstance(consensus.successful_count, bool)
+        or not isinstance(consensus.successful_count, int)
+        or consensus.successful_count < 0
+        or isinstance(consensus.total_count, bool)
+        or not isinstance(consensus.total_count, int)
+        or consensus.total_count < 0
+        or isinstance(consensus.min_successful, bool)
+        or not isinstance(consensus.min_successful, int)
+        or consensus.min_successful < 1
+        or (
+            consensus.choice is not None
+            and (not isinstance(consensus.choice, str) or not consensus.choice.strip())
+        )
+    ):
+        return False
+
+    numeric_fields = (
+        consensus.agreement,
+        consensus.successful_weight,
+        consensus.total_weight,
+        consensus.threshold,
+    )
+    if any(
+        isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value)
+        for value in numeric_fields
+    ):
+        return False
+    if (
+        not 0 <= consensus.agreement <= 1
+        or consensus.successful_weight < 0
+        or consensus.total_weight < 0
+        or not 0 < consensus.threshold <= 1
+    ):
+        return False
+
+    outcome_by_participant = {}
+    successful_outcomes = []
+    total_weight = 0.0
+    for outcome in consensus.outcomes:
+        if (
+            not isinstance(outcome.participant, str)
+            or not outcome.participant
+            or outcome.participant in outcome_by_participant
+            or not isinstance(outcome.status, ResponseStatus)
+            or isinstance(outcome.weight, bool)
+            or not isinstance(outcome.weight, (int, float))
+            or not math.isfinite(outcome.weight)
+            or outcome.weight <= 0
+        ):
+            return False
+        is_successful = outcome.status is ResponseStatus.SUCCESS
+        has_response = outcome.response is not None
+        if is_successful is not has_response:
+            return False
+        outcome_by_participant[outcome.participant] = outcome
+        total_weight += outcome.weight
+        if is_successful:
+            successful_outcomes.append(outcome)
+
+    successful_weight = sum(outcome.weight for outcome in successful_outcomes)
+    if (
+        consensus.total_count != len(consensus.outcomes)
+        or consensus.successful_count != len(successful_outcomes)
+        or not math.isclose(consensus.total_weight, total_weight, rel_tol=1e-12, abs_tol=1e-12)
+        or not math.isclose(
+            consensus.successful_weight,
+            successful_weight,
+            rel_tol=1e-12,
+            abs_tol=1e-12,
+        )
+    ):
+        return False
+
+    successful_participants = {outcome.participant for outcome in successful_outcomes}
+    tallied_participants: list[str] = []
+    normalized_choices: set[str] = set()
+    for tally in consensus.tallies:
+        if (
+            not isinstance(tally.choice, str)
+            or not tally.choice
+            or not isinstance(tally.normalized_choice, str)
+            or not tally.normalized_choice
+            or tally.normalized_choice in normalized_choices
+            or isinstance(tally.vote_count, bool)
+            or not isinstance(tally.vote_count, int)
+            or tally.vote_count != len(tally.participants)
+            or not tally.participants
+            or len(set(tally.participants)) != len(tally.participants)
+            or isinstance(tally.weight, bool)
+            or not isinstance(tally.weight, (int, float))
+            or not math.isfinite(tally.weight)
+            or tally.weight <= 0
+        ):
+            return False
+        if any(participant not in successful_participants for participant in tally.participants):
+            return False
+        expected_weight = sum(
+            outcome_by_participant[participant].weight for participant in tally.participants
+        )
+        first_response = outcome_by_participant[tally.participants[0]].response
+        if (
+            first_response is None
+            or tally.choice != first_response.choice
+            or not math.isclose(tally.weight, expected_weight, rel_tol=1e-12, abs_tol=1e-12)
+        ):
+            return False
+        normalized_choices.add(tally.normalized_choice)
+        tallied_participants.extend(tally.participants)
+
+    if (
+        len(set(tallied_participants)) != len(tallied_participants)
+        or set(tallied_participants) != successful_participants
+        or tuple(sorted(consensus.tallies, key=lambda item: (-item.weight, item.normalized_choice)))
+        != consensus.tallies
+        or not math.isclose(
+            sum(tally.weight for tally in consensus.tallies),
+            consensus.successful_weight,
+            rel_tol=1e-12,
+            abs_tol=1e-12,
+        )
+    ):
+        return False
+
+    quorum_reached = consensus.successful_count >= consensus.min_successful
+    leading_weight = consensus.tallies[0].weight if consensus.tallies else 0.0
+    agreement = leading_weight / consensus.total_weight if consensus.total_weight else 0.0
+    tied = len(consensus.tallies) > 1 and math.isclose(
+        consensus.tallies[0].weight,
+        consensus.tallies[1].weight,
+        rel_tol=1e-12,
+        abs_tol=1e-12,
+    )
+    if consensus.quorum_reached is not quorum_reached or not math.isclose(
+        consensus.agreement, agreement, rel_tol=1e-12, abs_tol=1e-12
+    ):
+        return False
+
+    if not quorum_reached:
+        expected_status = ConsensusStatus.QUORUM_FAILED
+        expected_choice = None
+    elif consensus.tallies and not tied and agreement >= consensus.threshold:
+        expected_status = ConsensusStatus.AGREED
+        expected_choice = consensus.tallies[0].choice
+    else:
+        expected_status = ConsensusStatus.NO_CONSENSUS
+        expected_choice = None
+    return consensus.status is expected_status and consensus.choice == expected_choice
+
+
 def evaluate_decision(
     consensus: ConsensusResult,
     policy: DecisionPolicy,
@@ -241,6 +396,8 @@ def evaluate_decision(
         raise DecisionInputError("consensus must be a ConsensusResult")
     if not isinstance(policy, DecisionPolicy):
         raise DecisionInputError("policy must be a DecisionPolicy")
+    if not _is_consensus_evidence_consistent(consensus):
+        raise DecisionInputError("consensus evidence is internally inconsistent")
 
     choice_by_participant = {
         participant: tally.normalized_choice

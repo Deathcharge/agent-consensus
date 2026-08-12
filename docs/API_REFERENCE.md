@@ -131,7 +131,10 @@ evaluate_decision(
 Returns `passed` only for an agreed pass choice when all configured evidence rules are satisfied.
 An explicit veto or agreed non-pass choice returns `blocked`. Missing required participants,
 insufficient successful weight, an unexpected choice, quorum failure, or no consensus returns
-`indeterminate` unless blocking evidence is also present.
+`indeterminate` unless blocking evidence is also present. The evaluator first rechecks the
+cross-field invariants produced by the package's consensus builders and raises `DecisionInputError`
+for internally contradictory evidence; this is structural validation, not provenance or identity
+authentication.
 
 `DecisionVerdict` exposes stable reason codes, the normalized winning choice, sorted veto and
 unavailable-participant lists, unexpected choices, the configured weight requirement, the complete
@@ -179,7 +182,8 @@ Important fields:
 
 - `ConsensusError`: base package exception
 - `ConfigurationError`: invalid bounds, thresholds, participants, or budgets
-- `DecisionInputError`: unsupported input types passed to decision evaluation (also a `TypeError`)
+- `DecisionInputError`: unsupported or internally inconsistent inputs passed to decision evaluation
+  (also a `TypeError`)
 - `DuplicateParticipantError`: repeated participant identity
 - `ResponseValidationError`: invalid prompts, votes, responses, or normalizer output
 
