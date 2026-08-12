@@ -27,7 +27,7 @@ python -m twine check dist/*
 ```
 
 Inspect the wheel and sdist, then install the exact wheel into a new virtual environment with
-`--no-deps`. Confirm the import path/version, run `pip check`, and run all five offline examples.
+`--no-deps`. Confirm the import path/version, run `pip check`, and run all seven offline examples.
 The CI matrix must also be green on every supported Python version before publication.
 
 ## 3. Configure publication without stored tokens
@@ -37,9 +37,11 @@ and a protected `pypi` GitHub environment. PyPI's
 [Trusted Publisher documentation](https://docs.pypi.org/trusted-publishers/) explains the OIDC flow;
 it mints short-lived credentials instead of storing a long-lived API token in repository secrets.
 
-The publishing job should receive only `id-token: write`, consume artifacts built by an unprivileged
-job, and use `pypa/gh-action-pypi-publish@release/v1`. Pin third-party actions to reviewed commit
-SHAs when the owner establishes the release workflow.
+The publishing job should declare job-level permissions containing only `id-token: write`, consume
+artifacts built by an unprivileged job, and use
+`pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33` (`release/v1`). Add an
+artifact read permission only if the final workflow's artifact topology requires it; the publishing
+job does not need repository contents. Re-review pinned action SHAs when updating their release.
 
 Do not configure publication until the distribution name, license, version, repository environment,
 and required reviewer are confirmed. This repository intentionally does not contain a live publish

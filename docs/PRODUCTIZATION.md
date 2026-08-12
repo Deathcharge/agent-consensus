@@ -1,6 +1,6 @@
 # Productization record
 
-Last updated: 2026-07-28
+Last updated: 2026-08-01
 
 This is the living audit and release record for `Deathcharge/agent-consensus`.
 
@@ -69,16 +69,17 @@ are not source changes and are removed/rebuilt during final verification.
 
 ### Definition
 
-A zero-runtime-dependency Python library that evaluates explicit weighted votes and can safely gather
-those votes from async application-supplied participant adapters. It returns deterministic,
-auditable results with quorum, threshold, failure, timeout, duration, and reported usage details.
+A zero-runtime-dependency Python library that gathers and evaluates explicit weighted votes, then
+applies fail-closed operational rules to the resulting evidence. It returns deterministic,
+auditable consensus results and decision verdicts with quorum, threshold, veto, required-reviewer,
+vocabulary, failure, timeout, duration, and reported usage details.
 
 ### Target user and use case
 
 The primary user is a Python developer who already has two or more independent agents, policy
-checks, reviewers, or services. The primary use case is making one bounded release/policy/routing
-decision from their explicit choices without adopting a full agent framework or coupling to one
-model provider.
+checks, reviewers, or services. The primary use case is enforcing a bounded release, output-safety,
+or routing gate from their explicit choices without adopting a full agent framework or coupling to
+one model provider.
 
 ### Primary journey
 
@@ -86,7 +87,10 @@ model provider.
 2. Wrap each evaluator in the small async responder protocol.
 3. Configure quorum, threshold, concurrency, timeout, size, and token limits.
 4. Run one prompt through `ConsensusEngine`.
-5. Branch on `agreed`, `no_consensus`, or `quorum_failed` and inspect all outcomes.
+5. Apply a `DecisionPolicy` with pass, veto, vocabulary, required-participant, and successful-weight
+   rules.
+6. Permit the protected action only for `passed`; handle `blocked` and `indeterminate` explicitly.
+7. Inspect or redact the complete verdict and underlying outcomes for audit.
 
 ### Independent reason to exist
 
@@ -122,17 +126,37 @@ Bounded primary-source research informed the implementation:
 - The [asyncio task documentation](https://docs.python.org/3.10/library/asyncio-task.html) documents
   timeout cancellation and gather cancellation behavior used by the engine.
 - [AutoGen teams](https://microsoft.github.io/autogen/stable/user-guide/agentchat-user-guide/tutorial/teams.html)
-  and [LangGraph multi-agent patterns](https://langchain-ai.github.io/langgraph/tutorials/multi_agent/multi-agent-collaboration/)
+  and [LangGraph's graph API](https://docs.langchain.com/oss/python/langgraph/use-graph-api)
   cover broader coordination. Their scope supports a narrow, composable decision primitive instead
   of a competing framework.
-- Current official action repositories document `actions/checkout@v6` and
-  `actions/setup-python@v6`; CI uses those major versions.
+- [OpenAI Agents SDK guardrails](https://openai.github.io/openai-agents-python/guardrails/) provide
+  per-guardrail tripwires. A separate deterministic gate is useful when multiple independent
+  guardrail or reviewer choices must satisfy quorum, weighting, required-party, or veto rules.
+- [GitHub deployment environments](https://docs.github.com/en/actions/reference/workflows-and-actions/deployments-and-environments)
+  demonstrate a real operational need for required reviewers and deployment protection rules. This
+  package supplies portable decision evidence; the host platform still owns identity and enforcement.
+- [OPA decision logs](https://www.openpolicyagent.org/docs/management-decision-logs) reinforce the
+  value of stable decision identifiers and auditable context while warning that logged inputs may
+  contain secrets. Verdict serialization therefore remains explicit and caller-redacted.
+- Direct public-package comparison found `consensus-weave` focused on quorum/weighted/veto proposal
+  arithmetic, `consensys` focused on a provider-dependent code-review product, and
+  `agent-consistency` focused on verifying workflow outcomes rather than multi-reviewer approval.
+  The defensible wedge here is bounded async evidence collection plus framework-neutral,
+  deterministic operational gates—not another agent conversation framework.
+- Local read-only portfolio inspection found concrete optional producers: Samsarix Policy Engine
+  exposes allow/deny plus policy ID/version/digest; Samsarix Ethics exposes allow/deny/review plus
+  decision/policy identity; Samsarix Orchestration names approval/interrupt as a next milestone; and
+  LaunchGuard maintains signed release/readiness evidence. The integration cookbook maps these
+  public shapes without importing or modifying any sibling repository.
+- CI references reviewed immutable commits for `actions/checkout` and `actions/setup-python`, with
+  human-readable version comments retained for dependency automation.
 - The public [PyPI project URL](https://pypi.org/project/agent-consensus/) returned HTTP 404 on
   2026-07-28. This suggests no public project currently exists, but it does not reserve the name or
   prove that the repository owner can publish it.
 
-Inference: a small provider-neutral package is more independently useful and supportable than
-preserving the extracted private integration or implementing another general agent framework.
+Inference: a small provider-neutral decision-gate package is more independently useful and
+supportable than preserving the extracted private integration or implementing another general
+agent framework.
 
 ## Architecture and product decisions
 
@@ -147,6 +171,10 @@ preserving the extracted private integration or implementing another general age
 - No automatic retry exists. The host owns idempotency and retry cost.
 - Error messages are discarded; only types appear in outcomes.
 - Prompts/results are returned to the caller but never logged or persisted by the library.
+- Consensus arithmetic and operational policy are separate. A veto or agreed non-pass result is
+  `blocked`; incomplete evidence is `indeterminate`; only a fully satisfied policy is `passed`.
+- Policy choices match normalized tally values exactly. Allowed vocabularies fail closed on unknown
+  values, and required names are availability checks rather than identity authentication.
 - Python package metadata lives only in `pyproject.toml`, and package discovery explicitly excludes
   tests.
 - Pinned contributor tools live in `requirements-dev.txt`. Runtime has no dependencies, so there is
@@ -175,6 +203,8 @@ preserving the extracted private integration or implementing another general age
 - [x] No CI despite README claims.
 - [x] No installed-wheel or example verification.
 - [x] No truthful security/trust-boundary documentation.
+- [x] Consensus results lacked a composable, fail-closed operational policy layer for real release,
+  routing, or output-safety gates.
 - [x] Current-facing ownership, support, conduct, citation, and attribution metadata used obsolete or
   fictional identities.
 - [ ] Owner must verify distribution-name availability and ownership before publication.
@@ -182,7 +212,7 @@ preserving the extracted private integration or implementing another general age
 ### P2
 
 - [ ] Add separately distributed provider adapter examples after users identify demanded providers.
-- [ ] Add property-based tests for custom voting policies if the policy surface expands.
+- [ ] Add property-based invariants for policy precedence, normalization, weights, and ordering.
 - [ ] Add signed provenance/SBOM in a publication workflow once release ownership is decided.
 - [ ] Reassess dropping Python 3.10 after its scheduled October 2026 end of life.
 - [ ] Owner must explicitly retain MIT or select Apache-2.0/MPL-2.0 after confirming the copyright
@@ -196,7 +226,9 @@ preserving the extracted private integration or implementing another general age
 - [x] Add prompt, content, participant, concurrency, and requested token caps.
 - [x] Return auditable typed tallies/outcomes without implicit persistence.
 - [x] Replace mock-only tests with production unit and integration tests.
-- [x] Make all five examples execute real library behavior offline.
+- [x] Make all seven examples execute real library behavior offline.
+- [x] Add deterministic pass/veto/required-party/vocabulary/weight policy evaluation with auditable
+  reason codes.
 - [x] Consolidate build and quality configuration in `pyproject.toml`.
 - [x] Add pinned contributor dependencies and cross-version/cross-platform CI.
 - [x] Test the installed wheel shape and exclude tests from it.
@@ -239,8 +271,17 @@ preserving the extracted private integration or implementing another general age
 - Added `NOTICE`, `TRADEMARKS.md`, `CITATION.cff`, release instructions, and a licensing decision
   record recommending Apache-2.0 or MPL-2.0 according to the owner's protection goal.
 - Defined a clean portfolio boundary with `neural-mesh`; both repositories remain standalone.
+- Added a framework-neutral operational decision gate, complete release-gate example, stable reason
+  codes, and explicit host-enforcement guidance.
+- Added stable policy IDs/digests plus a provider-neutral policy-panel example and cookbook grounded
+  in read-only inspection of real optional producer contracts.
+- Closed merged-review findings covering shared validation, immutable hashing, metadata tests,
+  alias normalization, documentation accuracy, least-privilege release guidance, and immutable CI
+  action references.
+- Updated the pinned contributor test runner to pytest 9.0.3, the first patched release for
+  CVE-2025-71176; the affected tool is development-only and not present in the runtime wheel.
 
-## Final verification
+## 0.2 productization verification (2026-07-28)
 
 Commands below were run after implementation and documentation changes on Windows. The execution
 environment blocked removal of ignored baseline artifact directories even after their absolute paths
@@ -274,6 +315,36 @@ Not run locally: Python 3.10, 3.12, and 3.14 full suites (interpreters unavailab
 TestPyPI/PyPI publication; real paid provider calls. Python 3.11 ran the complete local suite and
 Python 3.13 ran a local core smoke test. GitHub-hosted CI supplied the remaining Linux Python
 3.10–3.14 and Windows Python 3.14 evidence.
+
+## Decision-gate iteration verification (2026-08-01)
+
+The decision-gate branch was verified on Windows with Python 3.14.6 in a fresh system-temporary
+virtual environment installed solely from `requirements-dev.txt`. A second environment installed
+the built wheel with `--no-deps` and ran outside the checkout so source-tree imports could not mask
+packaging defects.
+
+| Command | Actual result |
+| --- | --- |
+| `python -m ruff format --check .` | Exit 0; 17 files already formatted |
+| `python -m ruff check .` | Exit 0; all checks passed |
+| `python -m mypy agent_consensus` | Exit 0; no issues in 6 source files |
+| `python -m pytest` | Exit 0; 80 passed; 99.62% branch-aware coverage (95% required) |
+| `python -m build --outdir <fresh-temp>/dist` | Exit 0; built the sdist, then built the pure-Python wheel from that sdist |
+| `python -m twine check <fresh-temp>/dist/*` | Wheel and sdist passed |
+| `<fresh-temp>/wheel-env/Scripts/python -m pip install --no-deps <wheel>` | Exit 0; installed `agent-consensus-0.2.0` with no dependencies |
+| Installed API smoke outside checkout | Exit 0; serialized schema-v1 policy ID and the stable digest vector `3db772...fa71c` |
+| `<fresh-temp>/wheel-env/Scripts/python -m pip check` | Exit 0; no broken requirements |
+| Installed-wheel execution of `examples/*.py` | All seven examples exited 0; release and policy-panel gates passed with source references preserved |
+
+Exact-head artifact digests belong in the external pull-request or release evidence rather than
+inside the sdist itself: embedding a newly calculated sdist digest changes that artifact. The local
+verification retained both artifacts in a GUID-named system temporary directory for inspection.
+
+GitHub Actions on draft PR #12 passed quality, Linux Python 3.10–3.14, Windows Python 3.14, package
+build/check, installed-wheel, and all-example jobs for implementation head
+`4ff499b1260821f5b71f5c1247ff5d869eb442db`. TestPyPI/PyPI
+publication, a real external consumer, and paid-provider calls remain intentionally outside local
+verification.
 
 ## Deferred work and rationale
 
@@ -312,7 +383,9 @@ Python 3.13 ran a local core smoke test. GitHub-hosted CI supplied the remaining
 - A participant that performs blocking synchronous work can stall the shared event loop; adapters
   must use non-blocking clients or explicitly move blocking work to a bounded thread executor.
 - Result metadata can be non-JSON or sensitive because it is caller-owned.
-- No real CI run or public installation evidence exists until the owner exercises external gates.
+- Public package-index installation evidence does not exist until the owner exercises the
+  publication gates. Hosted CI evidence exists for both the merged 0.2 release-candidate work and
+  the decision-gate implementation head on draft PR #12.
 
 ## Distribution and sustainability
 

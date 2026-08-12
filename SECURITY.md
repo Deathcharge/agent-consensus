@@ -30,10 +30,17 @@ Do not send secrets or live customer data in the initial report.
 - Give adapters the least network and data access they need.
 - Use a closed decision vocabulary and validate it in the adapter.
 - Set quorum and threshold to fail closed for the impact of the decision.
+- Use `DecisionPolicy.allowed_choices` at an operational boundary so an unreviewed normalized
+  choice cannot pass, and treat only `DecisionStatus.PASSED` as permission to proceed.
+- Configure required participants and vetoes deliberately, but do not confuse participant names
+  with authenticated identity or independent human approval.
+- Produce `ConsensusResult` through `evaluate_votes` or `ConsensusEngine`; do not reconstruct one
+  from untrusted serialized fields and treat it as verified evidence.
 - Redact results before logging or exporting them.
 - Add bounded, idempotent retries only when the provider operation is safe to repeat.
 - Use non-blocking provider clients; do not run blocking network or model calls on the event loop.
-- Apply authorization in the host system before acting on a consensus result.
+- Apply authorization and enforce the verdict in the host system before performing a protected
+  action. The policy evaluator is not an authorization service.
 - Do not treat this in-process tally as a Byzantine-fault-tolerant approval mechanism.
 
 The core package makes no network calls, opens no files, launches no subprocesses, and has no runtime

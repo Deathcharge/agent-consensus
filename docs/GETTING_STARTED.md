@@ -94,6 +94,33 @@ async def main() -> None:
 asyncio.run(main())
 ```
 
+## Apply an operational policy
+
+Use a decision policy when consensus protects an action rather than merely reporting a result:
+
+```python
+from agent_consensus import DecisionPolicy, DecisionStatus, evaluate_decision
+
+policy = DecisionPolicy(
+    pass_choices={"approve"},
+    veto_choices={"needs_review"},
+    allowed_choices={"approve", "needs_review"},
+    required_participants={"policy-a", "policy-b"},
+    min_successful_weight=2,
+)
+verdict = evaluate_decision(result, policy)
+
+if verdict.status is DecisionStatus.PASSED:
+    proceed()
+elif verdict.status is DecisionStatus.BLOCKED:
+    stop(verdict.reasons)
+else:
+    request_human_review(verdict.reasons)
+```
+
+Policy choice strings match normalized tally values exactly. With the default normalizer, use
+lowercase, whitespace-collapsed values. Only `passed` should authorize the protected action.
+
 ## Handle every result state
 
 ```python
@@ -124,4 +151,7 @@ log or third-party monitor.
 
 - Read the exact [API reference](API_REFERENCE.md).
 - Understand threshold and failure behavior in the [decision model](CONSENSUS_ALGORITHMS.md).
+- Configure fail-closed application rules with [decision gates](DECISION_GATES.md).
+- Adapt structured policy, ethics, workflow, and release evidence with the
+  [integration cookbook](INTEGRATIONS.md).
 - Run every script in [`examples/`](../examples/).

@@ -15,7 +15,11 @@ explicit normalizer:
 
 ```python
 aliases = {"approved": "approve", "yes": "approve"}
-normalizer = lambda choice: aliases.get(choice.casefold(), choice.casefold())
+
+
+def normalizer(choice: str) -> str:
+    normalized = " ".join(choice.split()).casefold()
+    return aliases.get(normalized, normalized)
 ```
 
 Treat custom normalization as security-sensitive policy and test it with adversarial inputs.

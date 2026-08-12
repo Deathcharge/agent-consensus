@@ -2,6 +2,29 @@
 
 This project follows semantic versioning. Dates use ISO 8601.
 
+## Unreleased
+
+### Added
+
+- Fail-closed operational decision policies with pass, veto, vocabulary, required-participant, and
+  successful-weight rules
+- Stable decision statuses and reason codes with JSON-serializable audit verdicts
+- Versioned policy snapshots with optional IDs and deterministic SHA-256 content digests
+- A complete offline release-gate example and decision-gate integration guide
+- A provider-neutral policy-panel example and optional integration cookbook
+- A package-specific `DecisionInputError` that remains compatible with `TypeError`
+
+### Changed
+
+- Pinned CI actions to reviewed immutable commit SHAs
+- Disabled persisted checkout credentials in every CI job
+- Updated the contributor test runner to pytest 9.0.3, closing CVE-2025-71176 in the pinned
+  development toolchain
+- Consolidated threshold and quorum-setting validation across public entry points
+- Made immutable participant responses safely hashable without hashing caller-owned metadata
+- Corrected review-discovered documentation and metadata-serialization coverage gaps
+- Made successful-weight policy boundaries tolerant of insignificant floating-point roundoff
+
 ## 0.2.0 - 2026-07-28
 
 ### Added
