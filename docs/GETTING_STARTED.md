@@ -42,8 +42,7 @@ weights must be finite positive numbers.
 A participant adapter has one method contract:
 
 ```python
-async def adapter(prompt: str, *, max_tokens: int) -> ParticipantResponse:
-    ...
+async def adapter(prompt: str, *, max_tokens: int) -> ParticipantResponse: ...
 ```
 
 The adapter owns provider configuration, credentials, input-token limits, and any retry behavior.
