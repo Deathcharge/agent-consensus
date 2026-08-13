@@ -77,8 +77,8 @@ result = evaluate_votes(
 )
 
 print(result.status.value)  # agreed
-print(result.choice)        # approve
-print(result.agreement)     # 0.666...
+print(result.choice)  # approve
+print(result.agreement)  # 0.666...
 ```
 
 ## Primary journey: query independent participants
