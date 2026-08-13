@@ -97,6 +97,50 @@ evaluate_votes(
 Synchronously evaluates already collected votes. Duplicate voter names are rejected. Because every
 input is a collected vote, this helper has no error or timeout outcomes.
 
+## DecisionPolicy
+
+```python
+DecisionPolicy(
+    policy_id: str | None = None,
+    pass_choices: Collection[str] = frozenset({"approve"}),
+    veto_choices: Collection[str] = frozenset(),
+    allowed_choices: Collection[str] | None = None,
+    required_participants: Collection[str] = frozenset(),
+    min_successful_weight: float = 0.0,
+)
+```
+
+Immutable operational rules applied after consensus evaluation. Choice configuration matches
+`ChoiceTally.normalized_choice` exactly. `pass_choices` cannot be empty; pass and veto choices
+cannot overlap; and an allowed vocabulary, when supplied, must include all pass and veto choices.
+`policy_id` is an optional bounded identifier for deployment configuration. `digest` is a
+deterministic SHA-256 digest over schema version 1 and the complete normalized policy content;
+`to_dict()` includes both for audit and interchange. The digest input is UTF-8 JSON with keys
+sorted, compact `,`/`:` separators, Unicode preserved, finite weights normalized to JSON numbers,
+and no `digest` field. Set-like values are sorted before encoding.
+
+## `evaluate_decision`
+
+```python
+evaluate_decision(
+    consensus: ConsensusResult,
+    policy: DecisionPolicy,
+) -> DecisionVerdict
+```
+
+Returns `passed` only for an agreed pass choice when all configured evidence rules are satisfied.
+An explicit veto or agreed non-pass choice returns `blocked`. Missing required participants,
+insufficient successful weight, an unexpected choice, quorum failure, or no consensus returns
+`indeterminate` unless blocking evidence is also present. The evaluator first rechecks the
+cross-field invariants produced by the package's consensus builders and raises `DecisionInputError`
+for internally contradictory evidence; this is structural validation, not provenance or identity
+authentication.
+
+`DecisionVerdict` exposes stable reason codes, the normalized winning choice, sorted veto and
+unavailable-participant lists, unexpected choices, the configured weight requirement, the complete
+applied policy snapshot, the complete underlying `ConsensusResult`, a `passed` convenience
+property, and `to_dict()`.
+
 ## Vote
 
 ```python
@@ -128,10 +172,18 @@ Important fields:
 
 `ResponseStatus` values: `success`, `error`, `timeout`.
 
+`DecisionStatus` values: `passed`, `blocked`, `indeterminate`.
+
+`DecisionReason` values: `policy_satisfied`, `veto_cast`, `winning_choice_not_permitted`,
+`required_participant_unavailable`, `successful_weight_below_minimum`, `unexpected_choice`,
+`quorum_failed`, and `no_consensus`.
+
 ## Exceptions
 
 - `ConsensusError`: base package exception
 - `ConfigurationError`: invalid bounds, thresholds, participants, or budgets
+- `DecisionInputError`: unsupported or internally inconsistent inputs passed to decision evaluation
+  (also a `TypeError`)
 - `DuplicateParticipantError`: repeated participant identity
 - `ResponseValidationError`: invalid prompts, votes, responses, or normalizer output
 

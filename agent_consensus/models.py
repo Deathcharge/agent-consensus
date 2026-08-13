@@ -43,7 +43,7 @@ class ParticipantResponse:
     content: str = ""
     confidence: float | None = None
     tokens_used: int | None = None
-    metadata: Mapping[str, Any] = field(default_factory=dict)
+    metadata: Mapping[str, Any] = field(default_factory=dict, hash=False)
 
     def __post_init__(self) -> None:
         if not isinstance(self.choice, str) or not self.choice.strip():
@@ -160,17 +160,7 @@ class ConsensusConfig:
     max_total_output_tokens: int = 4_000
 
     def __post_init__(self) -> None:
-        if (
-            isinstance(self.threshold, bool)
-            or not isinstance(self.threshold, (int, float))
-            or not math.isfinite(self.threshold)
-            or not 0 < self.threshold <= 1
-        ):
-            raise ConfigurationError("threshold must be greater than 0 and at most 1")
-        if isinstance(self.min_successful, bool) or not isinstance(self.min_successful, int):
-            raise ConfigurationError("min_successful must be an integer")
-        if self.min_successful < 1:
-            raise ConfigurationError("min_successful must be at least 1")
+        _validate_decision_settings(self.threshold, self.min_successful)
         if (
             isinstance(self.timeout_seconds, bool)
             or not isinstance(self.timeout_seconds, (int, float))
@@ -286,3 +276,23 @@ class ConsensusResult:
 
 
 ChoiceNormalizer = Callable[[str], str]
+
+
+def _validate_decision_settings(
+    threshold: float,
+    min_successful: int,
+    *,
+    quorum_field: str = "min_successful",
+) -> None:
+    """Validate the decision settings shared by both public entry points."""
+    if (
+        isinstance(threshold, bool)
+        or not isinstance(threshold, (int, float))
+        or not math.isfinite(threshold)
+        or not 0 < threshold <= 1
+    ):
+        raise ConfigurationError("threshold must be greater than 0 and at most 1")
+    if isinstance(min_successful, bool) or not isinstance(min_successful, int):
+        raise ConfigurationError(f"{quorum_field} must be an integer")
+    if min_successful < 1:
+        raise ConfigurationError(f"{quorum_field} must be at least 1")

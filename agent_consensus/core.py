@@ -14,6 +14,7 @@ from .errors import (
     ResponseValidationError,
 )
 from .models import (
+    MAX_CHOICE_CHARACTERS,
     ChoiceNormalizer,
     ChoiceTally,
     ConsensusConfig,
@@ -24,6 +25,7 @@ from .models import (
     ParticipantResponse,
     ResponseStatus,
     Vote,
+    _validate_decision_settings,
 )
 
 
@@ -37,6 +39,8 @@ def normalize_choice(choice: str) -> str:
 
 @dataclass
 class _MutableTally:
+    """Mutable accumulator used only while building an immutable result."""
+
     choice: str
     normalized_choice: str
     weight: float
@@ -44,25 +48,12 @@ class _MutableTally:
 
 
 def _validate_unique_names(names: Iterable[str]) -> None:
+    """Reject ambiguous participant identities before evaluating votes."""
     seen: set[str] = set()
     for name in names:
         if name in seen:
             raise DuplicateParticipantError(f"duplicate participant name: {name!r}")
         seen.add(name)
-
-
-def _validate_decision_settings(threshold: float, min_successful: int) -> None:
-    if (
-        isinstance(threshold, bool)
-        or not isinstance(threshold, (int, float))
-        or not math.isfinite(threshold)
-        or not 0 < threshold <= 1
-    ):
-        raise ConfigurationError("threshold must be greater than 0 and at most 1")
-    if isinstance(min_successful, bool) or not isinstance(min_successful, int):
-        raise ConfigurationError("min_successful must be an integer")
-    if min_successful < 1:
-        raise ConfigurationError("min_successful must be at least 1")
 
 
 def _build_result(
@@ -73,6 +64,7 @@ def _build_result(
     normalizer: ChoiceNormalizer,
     duration_ms: float,
 ) -> ConsensusResult:
+    """Build a deterministic immutable result from participant outcomes."""
     tallies_by_key: dict[str, _MutableTally] = {}
     successful = tuple(
         outcome
@@ -84,8 +76,12 @@ def _build_result(
         response = outcome.response
         assert response is not None
         normalized = normalizer(response.choice)
-        if not isinstance(normalized, str) or not normalized:
+        if not isinstance(normalized, str) or not normalized.strip():
             raise ResponseValidationError("choice normalizer must return a non-empty string")
+        if len(normalized) > MAX_CHOICE_CHARACTERS:
+            raise ResponseValidationError(
+                f"choice normalizer output cannot exceed {MAX_CHOICE_CHARACTERS} characters"
+            )
         tally = tallies_by_key.get(normalized)
         if tally is None:
             tally = _MutableTally(
@@ -170,7 +166,7 @@ def evaluate_votes(
     Failed participants are not representable in this synchronous helper. Use
     :class:`ConsensusEngine` when participant execution and failures matter.
     """
-    _validate_decision_settings(threshold, min_votes)
+    _validate_decision_settings(threshold, min_votes, quorum_field="min_votes")
     if not callable(normalizer):
         raise ConfigurationError("normalizer must be callable")
     collected = tuple(votes)
@@ -240,6 +236,7 @@ class ConsensusEngine:
         prompt: str,
         semaphore: asyncio.Semaphore,
     ) -> ParticipantOutcome:
+        """Isolate one bounded responder call and sanitize its outcome."""
         started = time.perf_counter()
         try:
             async with semaphore:

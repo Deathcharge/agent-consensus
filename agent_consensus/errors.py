@@ -13,5 +13,9 @@ class DuplicateParticipantError(ConfigurationError):
     """Raised when more than one participant uses the same name."""
 
 
+class DecisionInputError(ConsensusError, TypeError):
+    """Raised when decision evaluation receives an unsupported input type."""
+
+
 class ResponseValidationError(ConsensusError, ValueError):
     """Raised when a participant response violates the response contract."""
