@@ -27,8 +27,21 @@ python -m twine check dist/*
 ```
 
 Inspect the wheel and sdist, then install the exact wheel into a new virtual environment with
-`--no-deps`. Confirm the import path/version, run `pip check`, and run all seven offline examples.
-The CI matrix must also be green on every supported Python version before publication.
+`--no-deps`. Using **that environment's Python**, run:
+
+```bash
+python -m pip check
+python -I scripts/check_installed.py
+python -I examples/01_basic_consensus.py
+# Repeat for each of the seven examples listed in README.md.
+```
+
+`-I` excludes checkout paths and `PYTHONPATH` from imports. The check asserts that the installed
+package comes from the selected environment, checks version, licenses, typing marker and absence
+of runtime dependencies, and exercises a local release consumer's pass, veto, unknown-choice and
+unavailable-reviewer paths. It also checks strict successful-weight boundaries. This consumer
+simulation is not evidence of external production adoption. The CI matrix must also be green on
+every supported Python version before publication.
 
 ## 3. Configure publication without stored tokens
 
