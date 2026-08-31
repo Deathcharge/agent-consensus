@@ -191,6 +191,15 @@ def test_minimum_weight_does_not_trust_tolerated_summary_inflation() -> None:
     assert verdict.reasons == (DecisionReason.SUCCESSFUL_WEIGHT_BELOW_MINIMUM,)
 
 
+def test_overflowing_outcome_evidence_fails_consistency_validation() -> None:
+    result = evaluate_votes([Vote("a", "approve", 1e308)])
+    invalid = replace(
+        result, outcomes=(*result.outcomes, replace(result.outcomes[0], participant="b"))
+    )
+    with pytest.raises(DecisionInputError, match="internally inconsistent"):
+        evaluate_decision(invalid, DecisionPolicy())
+
+
 @pytest.mark.parametrize("minimum", [2**53 + 1, 10**18 + 128, 10**400])
 def test_minimum_weight_cannot_silently_change_during_float_normalization(minimum: int) -> None:
     with pytest.raises(ConfigurationError, match="min_successful_weight"):

@@ -14,6 +14,7 @@ from pathlib import Path
 
 import agent_consensus
 from agent_consensus import (
+    ConfigurationError,
     ConsensusConfig,
     ConsensusEngine,
     DecisionPolicy,
@@ -54,6 +55,16 @@ class InstalledWheelTests(unittest.IsolatedAsyncioTestCase):
                 )
         result = evaluate_votes([Vote("a", "approve", 0.1), Vote("b", "approve", 0.7)])
         self.assertTrue(evaluate_decision(result, DecisionPolicy(min_successful_weight=0.8)).passed)
+
+    def test_fractional_unanimity_and_aggregate_limits(self) -> None:
+        result = evaluate_votes(
+            [Vote(str(index), "approve", weight) for index, weight in enumerate((1e-15, 1.0, 0.1))],
+            threshold=1.0,
+        )
+        self.assertEqual(result.agreement, 1.0)
+        self.assertTrue(evaluate_decision(result, DecisionPolicy()).passed)
+        with self.assertRaises(ConfigurationError):
+            evaluate_votes([Vote("a", "approve", 1e308), Vote("b", "approve", 1e308)])
 
     async def test_release_consumer_enforces_every_verdict(self) -> None:
         # Consumer-owned contract v1: source decisions must be explicit and closed-vocabulary.

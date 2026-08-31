@@ -11,11 +11,13 @@ from agent_consensus import (
     ConsensusConfig,
     ConsensusEngine,
     ConsensusStatus,
+    DecisionPolicy,
     DuplicateParticipantError,
     Participant,
     ParticipantResponse,
     ResponseStatus,
     ResponseValidationError,
+    evaluate_decision,
 )
 
 ResponseCallable = Callable[..., Awaitable[ParticipantResponse]]
@@ -72,6 +74,32 @@ async def test_engine_completes_the_primary_consensus_journey() -> None:
         "reliability",
         "product",
     ]
+
+
+@pytest.mark.asyncio
+async def test_fractional_unanimity_passes_the_policy_gate() -> None:
+    engine = ConsensusEngine(
+        [
+            Participant(str(index), responder("approve"), weight)
+            for index, weight in enumerate((1e-15, 1.0, 0.1))
+        ],
+        config=ConsensusConfig(threshold=1.0),
+    )
+    result = await engine.run("fractional release gate")
+    assert result.agreement == 1.0
+    assert evaluate_decision(result, DecisionPolicy()).passed
+
+
+def test_aggregate_weight_overflow_fails_before_any_adapter_call() -> None:
+    calls: list[str] = []
+
+    async def unexpected(prompt: str, *, max_tokens: int) -> ParticipantResponse:
+        calls.append(prompt)
+        return ParticipantResponse(choice="approve")
+
+    with pytest.raises(ConfigurationError, match="total participant weight"):
+        ConsensusEngine([Participant("a", unexpected, 1e308), Participant("b", unexpected, 1e308)])
+    assert calls == []
 
 
 @pytest.mark.asyncio

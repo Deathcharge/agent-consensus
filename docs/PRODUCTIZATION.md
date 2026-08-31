@@ -215,7 +215,7 @@ agent framework.
 ### P2
 
 - [ ] Add separately distributed provider adapter examples after users identify demanded providers.
-- [ ] Add property-based invariants for policy precedence, normalization, weights, and ordering.
+- [x] Add bounded generated invariants for policy precedence, normalization, weights, and ordering.
 - [ ] Add signed provenance/SBOM in a publication workflow once release ownership is decided.
 - [ ] Reassess dropping Python 3.10 after its scheduled October 2026 end of life.
 - [ ] Owner must explicitly retain MIT or select Apache-2.0/MPL-2.0 after confirming the copyright
@@ -389,6 +389,30 @@ report is available. The targeted reproduction, independent review, and checks a
 for this fix, not a claim of a completed repository-wide security audit. Exact-head hosted CI and
 artifact hashes are recorded in the pull request. Package publication and external production
 adoption are not part of this verification.
+
+## Artifact and generated-invariant follow-up (2026-08-31)
+
+The installed-wheel CI smoke previously ran an import from the checkout, which could resolve source
+instead of the installed artifact. CI now runs `scripts/check_installed.py` and all seven examples
+with `-I`, asserts package location and distribution metadata, and checks dependency consistency.
+The source distribution includes this verification script and the roadmap. The script exercises a
+consumer-owned release simulation with approved, vetoed, unknown-choice and unavailable-reviewer
+outcomes and an explicit audit-field allowlist. It is not a claim of external adoption.
+
+New bounded exhaustive tests enumerate 4,608 policy/order configurations, 2,048 exact-decimal
+boundary comparisons and 256 policy-strengthening comparisons. The independent Decimal oracle
+exposed a second defect: 24 of its 512 fractional panels generated agreement above 1.0 on Python
+3.14, then failed evidence validation. Tally accumulation used repeated addition while totals used
+Python's `sum`. Both now use the same [accurate floating-point summation](https://docs.python.org/3/library/math.html#math.fsum).
+Aggregate overflow is a configuration error, checked before async adapter execution. The
+floating-point threshold/tie semantics remain distinct from the exact policy minimum.
+
+The final source suite passes **115 tests with 97.22% coverage** on Windows Python 3.14.7 and 3.11.9.
+Formatting, lint and strict package typing pass. Four dependency-free installed-wheel checks and all
+seven examples are required in addition to the source suite; the exact-head build/install/CI record
+and artifact hashes are recorded in the pull request. The earlier independent security-fix review
+covered the minimum-weight patch; the generated-invariant follow-up was reviewed locally with
+separate static, async, overflow, decimal-oracle, and installed-wheel regressions.
 
 ## Deferred work and rationale
 

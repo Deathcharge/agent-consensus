@@ -281,7 +281,6 @@ def _is_consensus_evidence_consistent(consensus: ConsensusResult) -> bool:
 
     outcome_by_participant = {}
     successful_outcomes = []
-    total_weight = 0.0
     for outcome in consensus.outcomes:
         if (
             not isinstance(outcome.participant, str)
@@ -299,11 +298,14 @@ def _is_consensus_evidence_consistent(consensus: ConsensusResult) -> bool:
         if is_successful is not has_response:
             return False
         outcome_by_participant[outcome.participant] = outcome
-        total_weight += outcome.weight
         if is_successful:
             successful_outcomes.append(outcome)
 
-    successful_weight = sum(outcome.weight for outcome in successful_outcomes)
+    try:
+        total_weight = math.fsum(outcome.weight for outcome in consensus.outcomes)
+    except OverflowError:
+        return False
+    successful_weight = math.fsum(outcome.weight for outcome in successful_outcomes)
     if (
         consensus.total_count != len(consensus.outcomes)
         or consensus.successful_count != len(successful_outcomes)
@@ -340,7 +342,7 @@ def _is_consensus_evidence_consistent(consensus: ConsensusResult) -> bool:
             return False
         if any(participant not in successful_participants for participant in tally.participants):
             return False
-        expected_weight = sum(
+        expected_weight = math.fsum(
             outcome_by_participant[participant].weight for participant in tally.participants
         )
         first_response = outcome_by_participant[tally.participants[0]].response

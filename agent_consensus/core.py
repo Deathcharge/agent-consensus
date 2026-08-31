@@ -43,7 +43,7 @@ class _MutableTally:
 
     choice: str
     normalized_choice: str
-    weight: float
+    weights: list[float]
     participants: list[str]
 
 
@@ -56,6 +56,14 @@ def _validate_unique_names(names: Iterable[str]) -> None:
         seen.add(name)
 
 
+def _sum_weights(weights: Iterable[float]) -> float:
+    """Use the same accurate accumulation for totals and their positive subsets."""
+    try:
+        return math.fsum(weights)
+    except OverflowError as error:
+        raise ConfigurationError("total participant weight must be finite") from error
+
+
 def _build_result(
     outcomes: tuple[ParticipantOutcome, ...],
     *,
@@ -65,6 +73,7 @@ def _build_result(
     duration_ms: float,
 ) -> ConsensusResult:
     """Build a deterministic immutable result from participant outcomes."""
+    total_weight = _sum_weights(outcome.weight for outcome in outcomes)
     tallies_by_key: dict[str, _MutableTally] = {}
     successful = tuple(
         outcome
@@ -87,11 +96,11 @@ def _build_result(
             tally = _MutableTally(
                 choice=response.choice,
                 normalized_choice=normalized,
-                weight=0.0,
+                weights=[],
                 participants=[],
             )
             tallies_by_key[normalized] = tally
-        tally.weight += outcome.weight
+        tally.weights.append(outcome.weight)
         tally.participants.append(outcome.participant)
 
     tallies = tuple(
@@ -100,7 +109,7 @@ def _build_result(
                 ChoiceTally(
                     choice=tally.choice,
                     normalized_choice=tally.normalized_choice,
-                    weight=tally.weight,
+                    weight=_sum_weights(tally.weights),
                     vote_count=len(tally.participants),
                     participants=tuple(tally.participants),
                 )
@@ -110,8 +119,7 @@ def _build_result(
         )
     )
 
-    total_weight = sum(outcome.weight for outcome in outcomes)
-    successful_weight = sum(outcome.weight for outcome in successful)
+    successful_weight = _sum_weights(outcome.weight for outcome in successful)
     quorum_reached = len(successful) >= min_successful
     leading_weight = tallies[0].weight if tallies else 0.0
     agreement = leading_weight / total_weight if total_weight else 0.0
@@ -221,6 +229,7 @@ class ConsensusEngine:
         if self.config.min_successful > len(self.participants):
             raise ConfigurationError("min_successful cannot exceed the number of participants")
         _validate_unique_names(participant.name for participant in self.participants)
+        _sum_weights(participant.weight for participant in self.participants)
         self._allocated_tokens = min(
             self.config.max_output_tokens_per_participant,
             self.config.max_total_output_tokens // len(self.participants),
