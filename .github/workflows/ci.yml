@@ -28,6 +28,9 @@ jobs:
       - run: python -m ruff format --check .
       - run: python -m ruff check .
       - run: python -m mypy agent_consensus
+      - run: python -m mypy --strict scripts/release_bundle.py
+      - name: Check release-tool coverage independently of runtime coverage
+        run: python -m pytest -o addopts= tests/test_release_bundle.py --cov=scripts.release_bundle --cov-branch --cov-report=term-missing --cov-fail-under=95
 
   test:
     runs-on: ${{ matrix.os }}
@@ -78,3 +81,20 @@ jobs:
           for example in examples/*.py; do
             .package-venv/bin/python -I "$example"
           done
+      - name: Create and verify candidate receipt
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          SOURCE_COMMIT: ${{ github.sha }}
+        run: |
+          python -I scripts/release_bundle.py create --dist dist --source-commit "$SOURCE_COMMIT"
+          manifest_sha256="$(sha256sum dist/release-manifest.json | cut -d ' ' -f1)"
+          python -I scripts/release_bundle.py verify --dist dist --source-commit "$SOURCE_COMMIT" --manifest-sha256 "$manifest_sha256"
+      - name: Retain verified main candidate for owner review
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: candidate-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0

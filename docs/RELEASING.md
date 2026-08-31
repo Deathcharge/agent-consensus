@@ -1,8 +1,8 @@
 # Release procedure
 
-Releases are owner-gated. Building and validating artifacts is safe locally; creating a GitHub
-release, registering a package index publisher, or uploading artifacts changes external state and
-requires an authorized Samsarix release owner.
+Releases are owner-gated. CI retains temporary candidate artifacts for review; it does not publish
+packages. Creating a GitHub release, registering a package index publisher, or uploading to
+TestPyPI/PyPI requires an authorized Samsarix release owner.
 
 ## 1. Decide the release identity
 
@@ -15,13 +15,18 @@ requires an authorized Samsarix release owner.
 
 ## 2. Verify the candidate
 
-From a clean checkout with the pinned contributor toolchain installed:
+From a clean, committed checkout with the pinned contributor toolchain installed and a fresh,
+empty `dist` directory (do not mix old candidates):
+
+To review an existing CI candidate, skip rebuilding and use the download subsection below instead.
 
 ```bash
 python -m ruff format --check .
 python -m ruff check .
 python -m mypy agent_consensus
+python -m mypy --strict scripts/release_bundle.py
 python -m pytest
+python -m pytest -o addopts= tests/test_release_bundle.py --cov=scripts.release_bundle --cov-branch --cov-report=term-missing --cov-fail-under=95
 python -m build
 python -m twine check dist/*
 ```
@@ -42,6 +47,66 @@ of runtime dependencies, and exercises a local release consumer's pass, veto, un
 unavailable-reviewer paths. It also checks strict successful-weight boundaries. This consumer
 simulation is not evidence of external production adoption. The CI matrix must also be green on
 every supported Python version before publication.
+
+### Review the exact CI candidate without rebuilding
+
+After all quality, matrix and installed-package checks pass, `main` push CI creates a receipt and
+retains one GitHub Actions artifact named `candidate-COMMIT-RUN_ID-RUN_ATTEMPT` for seven days.
+It contains exactly the wheel, sdist and `release-manifest.json`. Pull-request runs do not upload
+candidates. The workflow uses read-only repository permissions and a commit-pinned upload action;
+it has no publisher credentials or OIDC publishing permission.
+
+1. Select a successful **CI** push run for the intended full `main` commit in this repository.
+   Check its event, branch, head, attempt, conclusion, job results and logs, not just an artifact name.
+2. Copy the full commit SHA, artifact name and the `Manifest SHA-256: ...` value from that run's
+   **Create and verify candidate receipt** log. The receipt digest is different from GitHub's ZIP
+   artifact digest. Obtain it from the trusted run, not by hashing the downloaded receipt.
+3. Download to a new, empty directory, then verify with this script from a trusted checkout. The
+   following commands work in Bash and PowerShell when placeholders are replaced with those values:
+
+```bash
+gh run view RUN_ID --repo Deathcharge/agent-consensus --json workflowName,event,headBranch,headSha,attempt,conclusion,url,jobs
+gh run view RUN_ID --repo Deathcharge/agent-consensus --attempt RUN_ATTEMPT --log
+gh run download RUN_ID --repo Deathcharge/agent-consensus --name candidate-COMMIT-RUN_ID-RUN_ATTEMPT --dir candidate-download
+python -I scripts/release_bundle.py verify --dist candidate-download --source-commit COMMIT --manifest-sha256 TRUSTED_MANIFEST_SHA256
+```
+
+Require exit code 0 and the expected `Verified agent-consensus VERSION at COMMIT` output before
+installing anything. Any mismatch, missing/extra file, malformed receipt, symbolic link or oversized file
+fails with a nonzero exit code. The tool requires a 40-character lowercase Git commit SHA and
+64-character lowercase receipt SHA-256. Each distribution is limited to 100 MiB; the receipt is
+limited to 64 KiB. It reads files without extracting or executing package contents. It intentionally
+supports this project's pure-Python wheel/sdist filenames, not arbitrary package bundles.
+
+Then install that exact wheel in a new environment and repeat the isolated checks and examples
+above, using trusted scripts from the selected revision. Keep the candidate directory unchanged
+between verification, installation and any later upload. Upload **only the wheel and sdist** to a
+package index, never `release-manifest.json` or a wildcard that also selects it.
+
+Receipts bind bytes to a **stated** commit; they do not prove the build came from that commit, certify
+package contents or license rights, or replace signatures, attestations, an SBOM or CI review. Anyone
+able to replace both files and your trusted digest can forge a receipt. Verification assumes trusted
+local tools, CI/account access and no concurrent modification of the selected directory.
+
+For a locally built candidate, run the following only after the preceding checks, from a clean,
+committed checkout. Record the printed digest separately and use it in the verification command:
+
+```bash
+git rev-parse HEAD
+python -I scripts/release_bundle.py create --dist dist --source-commit COMMIT
+python -I scripts/release_bundle.py verify --dist dist --source-commit COMMIT --manifest-sha256 TRUSTED_MANIFEST_SHA256
+```
+
+Creation refuses existing receipts and extra files; it never overwrites a candidate's receipt.
+It does not run tests or inspect Git state for you. If the seven-day artifact has expired,
+prepare and verify a new candidate instead of claiming newly built bytes are the original files.
+An owner can retain an approved copy before expiry under their own retention policy. GitHub artifact
+storage uses the repository's existing Actions allowance; this workflow does not change billing.
+
+This follows [PyPA's separation of build artifacts from publication](https://packaging.python.org/en/latest/guides/publishing-package-distribution-releases-using-github-actions-ci-cd-workflows/).
+See [GitHub artifact retention and download behavior](https://docs.github.com/en/actions/concepts/workflows-and-actions/workflow-artifacts)
+for access and expiry rules. GitHub's archive-integrity check is separate from the fail-closed receipt
+verification above.
 
 ## 3. Configure publication without stored tokens
 

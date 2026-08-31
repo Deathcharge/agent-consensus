@@ -240,7 +240,9 @@ python examples/07_policy_panel.py
 CI is configured to run formatting, linting, strict type checking, coverage, Python 3.10–3.14 tests,
 a Windows test run, artifact checks, isolated wheel installation, and every example. The installed
 wheel also runs a release-consumer simulation covering pass, veto, unknown choice, unavailable
-reviewer, and host-owned audit redaction (`scripts/check_installed.py`). It does not publish artifacts.
+reviewer, and host-owned audit redaction (`scripts/check_installed.py`). Successful `main` push runs
+retain the tested wheel, sdist and checksum receipt for seven days in GitHub Actions. There is no
+automatic package-index publication or GitHub release.
 
 An optional [installed policy-engine consumer](https://github.com/Deathcharge/agent-consensus/tree/main/integrations/policy_engine) demonstrates
 a real structured authorization decision combined with readiness at an enforcement point. It has a
@@ -251,6 +253,11 @@ pinned producer contract and separate CI. The core wheel retains zero runtime de
 Build artifacts locally with `python -m build`. A release owner should then verify the package name,
 version/tag, changelog, and PyPI ownership before configuring a Trusted Publisher. No publication
 credentials belong in this repository.
+
+To review an existing CI candidate without rebuilding it, follow the release procedure's
+download-and-verify steps. `scripts/release_bundle.py` checks the exact file inventory, sizes and
+SHA-256 hashes against an independently trusted commit and receipt digest. It is a standard-library
+release tool, not a runtime API, package-content validator, signature or proof of source provenance.
 
 The package uses semantic versioning. See the
 [changelog](https://github.com/Deathcharge/agent-consensus/blob/main/CHANGELOG.md) for release notes

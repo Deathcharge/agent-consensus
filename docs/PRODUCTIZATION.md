@@ -485,13 +485,14 @@ shallow metadata freezing and host-owned authorization/retention. The README now
 async quorum default of 2 from the collected-vote default of 1 and makes the different roster and
 resource-limit contracts explicit. These follow-up edits change documentation only.
 
-Release handoff order:
+Release handoff status (updated after owner-authorized merges):
 
-1. Review and merge [PR #14](https://github.com/Deathcharge/agent-consensus/pull/14), which contains
-   numeric hardening and isolated artifact verification, when an owner authorizes the merge.
-2. Retarget the stacked [PR #15](https://github.com/Deathcharge/agent-consensus/pull/15) from
-   `codex/exact-policy-weight` to `main` after that merge, verify the resulting diff and CI, then
-   review the optional producer/consumer integration independently.
+1. [PR #14](https://github.com/Deathcharge/agent-consensus/pull/14), containing numeric hardening and
+   isolated artifact verification, merged as `f9ad5f1a3a2b87388d2e85fe4990cc9a22229ba2`.
+2. [PR #15](https://github.com/Deathcharge/agent-consensus/pull/15) was retargeted to `main`, its
+   resulting merge tree checked against the tested head, and merged as
+   `036ea2ba2b0d5abe1509c01293d4f7864b41ecc1`. No open PRs remained. The owner authorized subsequent
+   focused work directly on `main`; no history was rewritten or sibling repository changed.
 3. Confirm license, package ownership and release identity, then follow `RELEASING.md` before any
    TestPyPI/PyPI upload. No publication, deployment, license change or sibling modification is
    included in this handoff.
@@ -501,6 +502,59 @@ Release handoff order:
 Exact commit checks, artifact hashes and the completed scan identifier belong in the pull-request
 evidence. The scan covers the revision named above; later documentation edits do not imply a new
 whole-repository audit or silently extend its scope.
+
+## Exact-artifact candidate handoff (2026-08-31)
+
+The merged baseline passed [core CI](https://github.com/Deathcharge/agent-consensus/actions/runs/33416693014)
+and [installed-consumer CI](https://github.com/Deathcharge/agent-consensus/actions/runs/33416692887).
+Its local suite passed 118 tests with 97.22% core coverage. An artifact API check found zero retained
+artifacts for the core run: CI had verified distributions but discarded the files needed to follow
+the release procedure's requirement to publish the same bytes. This was a P1 release-handoff gap,
+not a runtime defect or a reason to publish prematurely.
+
+The bounded correction adds `scripts/release_bundle.py`, a standard-library-only release tool outside
+the runtime wheel/API. After existing package checks, main-push CI creates a deterministic receipt,
+verifies it, and retains the exact wheel, sdist and receipt for seven days. Upload uses the reviewed
+`actions/upload-artifact` v7.0.1 commit `043fb46d1a93c77aae656e7c1c64a875d1fc6a0a`, with no new
+repository write or publishing permissions. Artifact names include the commit, run ID and attempt.
+Pull-request CI does not retain candidates. Expiry limits retention within the existing Actions
+allowance; no billing configuration was changed.
+
+Creation requires exactly one core wheel and matching sdist, refuses an existing receipt, and never
+overwrites it. Verification requires an independently supplied commit and manifest digest, validates
+an exact schema and inventory, rejects duplicate JSON keys, symbolic links, unsafe filenames and size/hash
+mismatches, and reads without extracting or executing artifacts. Receipts are limited to 64 KiB and
+each distribution to 100 MiB. Negative tests cover mutation, malformed/untrusted input, missing and
+extra files, invalid identity, repeat creation, isolated CLI behavior and nonzero failure exits.
+
+Local source verification on Windows Python 3.14.7:
+
+| Command | Result |
+| --- | --- |
+| `python -m ruff format --check .` / `python -m ruff check .` | Passed |
+| `python -m mypy agent_consensus` / `python -m mypy --strict scripts/release_bundle.py` | Passed; 6 runtime files and 1 release-tool file |
+| `python -m pytest -q` | 154 passed; core coverage unchanged at 97.22% |
+| `python -m pytest -o addopts= tests/test_release_bundle.py --cov=scripts.release_bundle --cov-branch --cov-report=term-missing --cov-fail-under=95` | 36 passed; release-tool coverage 95.81% |
+| `python -m build --outdir <fresh-temp>/dist` / `python -m twine check <fresh-temp>/dist/*` | Fresh wheel built from sdist; both metadata checks passed |
+| `<wheel-python> -m pip install --no-index --no-deps <wheel>` / `pip check` | Installed in a new environment; no broken requirements |
+| `<wheel-python> -I scripts/check_installed.py` / all seven examples with `-I` | 4 installed-wheel checks and all examples passed |
+| `python -m pytest -q` from the extracted fresh sdist | 154 passed; 97.22% core coverage; import-path assertion confirmed extracted source |
+
+CI repeats the new tests across the supported matrix and gates release-tool coverage separately
+from core coverage. The release procedure now gives exact trusted-run selection, download,
+verification, isolated installation and expiry-recovery steps. Exact-head hosted run and downloaded
+artifact evidence must accompany the candidate's handoff; these source results alone are not that
+evidence. The optional consumer's code and pinned producer contract were not changed by this slice.
+
+This design follows [PyPA's build/publish separation](https://packaging.python.org/en/latest/guides/publishing-package-distribution-releases-using-github-actions-ci-cd-workflows/)
+and [GitHub's artifact handoff model](https://docs.github.com/en/actions/concepts/workflows-and-actions/workflow-artifacts).
+The product inference is to preserve already-tested bytes, not add a publishing service. The receipt
+is unsigned and only binds bytes to a stated commit; it is not authenticated source provenance, a
+package-content validator, an SBOM, a license approval or evidence of production adoption. Trusted
+CI/account access, an independent digest and stable local files remain assumptions. The previous
+formal scan does not cover this new release tooling. Package publication and license choice remain
+owner-gated; signed provenance and a real application's adoption evidence remain higher-value next
+gates than additional speculative runtime features.
 
 ## Deferred work and rationale
 

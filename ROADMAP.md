@@ -11,10 +11,10 @@ not own provider clients, agent conversations, persistence, deployment execution
 authorization. Other Samsarix repositories may consume its public API, but none is a runtime
 dependency.
 
-Current disposition: the original productization work and decision-gate capability are merged
-(PR #12). Successful-weight boundary hardening, consistent fractional tallying, generated invariant
-tests, and isolated artifact checks are the current release-candidate patch. Publication and
-production adoption remain owner-controlled decisions.
+Current disposition: the original productization work and decision-gate capability (PR #12),
+numeric hardening and artifact checks (PR #14), and optional installed producer/consumer integration
+(PR #15) are merged to `main`. Main-push CI now retains checksum-bound candidate artifacts for
+owner review. Publication and production adoption remain owner-controlled decisions.
 
 ## Release-candidate priorities
 
@@ -24,6 +24,8 @@ production adoption remain owner-controlled decisions.
   a real application's consumer-owned enforcement evidence before claiming production adoption.
 - Confirm package-index ownership, license, release version, provenance workflow, and rollback before
   publication.
+- Verify a downloaded candidate against the successful CI run's commit and separately recorded
+  receipt digest before installing or publishing it; unsigned checksums are not signed provenance.
 - Preserve immutable CI/action references and keep dependency upgrades isolated in reviewable PRs.
 
 ## Highest-value product work

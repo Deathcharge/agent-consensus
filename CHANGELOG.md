@@ -6,6 +6,10 @@ This project follows semantic versioning. Dates use ISO 8601.
 
 ### Added
 
+- Standard-library release-bundle creation and fail-closed verification, with bounded file sizes,
+  exact inventories, independently supplied commit/digest expectations and negative CLI tests
+- Seven-day retention of the exact verified wheel, sdist and checksum receipt from successful
+  `main` push CI runs, plus an owner download/verification procedure; no automatic publication
 - A separately packaged optional policy-engine consumer with a pinned producer revision, versioned
   contract fixture, real allow/deny evaluation, fail-closed drift handling, immutable request binding,
   audit redaction and dedicated installed-wheel CI; the core remains dependency-free
