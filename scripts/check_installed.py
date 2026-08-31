@@ -34,6 +34,21 @@ from agent_consensus import (
 
 
 class InstalledWheelTests(unittest.IsolatedAsyncioTestCase):
+    def test_roster_collection_stops_at_the_participant_cap(self) -> None:
+        consumed = []
+
+        async def approve(prompt: str, *, max_tokens: int) -> ParticipantResponse:
+            return ParticipantResponse("approve")
+
+        def roster():
+            for index in range(100):
+                consumed.append(index)
+                yield Participant(str(index), approve)
+
+        with self.assertRaises(ConfigurationError):
+            ConsensusEngine(roster(), config=ConsensusConfig(max_participants=3))
+        self.assertEqual(consumed, [0, 1, 2, 3])
+
     def test_documented_primary_journeys(self) -> None:
         # Execute only explicitly marked snippets in these trusted checkout documents.
         # The -I invocation keeps their package imports bound to the installed wheel.

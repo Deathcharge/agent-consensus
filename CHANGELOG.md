@@ -28,6 +28,9 @@ This project follows semantic versioning. Dates use ISO 8601.
 
 ### Changed
 
+- Enforce the async engine's participant cap during iterable collection, stopping at the first
+  excess entry instead of materializing an entire oversized roster; valid roster order and reuse
+  remain unchanged
 - Normalize oversized-integer numeric validation failures to the documented configuration,
   response and decision-input exceptions; retain accepted integer weights without coercion
 - Fixed the README and getting-started async examples to return the collected result into the

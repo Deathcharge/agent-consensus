@@ -18,6 +18,13 @@ Construction rejects an empty participant list, duplicate names, impossible quor
 counts above the configured cap, and a total token budget too small to allocate one token per
 participant.
 
+The constructor snapshots a valid roster in input order. It consumes at most
+`max_participants + 1` entries from an oversized iterable, then rejects it rather than draining it
+or silently truncating the roster. The caller retains ownership of the iterator and any resources
+behind it. This bounds collected entries, not the time or work spent producing one entry: a blocking
+iterator still blocks its caller. `evaluate_votes` remains the separately documented uncapped
+synchronous helper.
+
 ### `await run(prompt: str) -> ConsensusResult`
 
 Queries participants with bounded concurrency and a timeout for each active call. Queue time is

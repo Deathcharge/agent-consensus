@@ -214,18 +214,21 @@ class ConsensusEngine:
         config: ConsensusConfig | None = None,
         normalizer: ChoiceNormalizer = normalize_choice,
     ) -> None:
-        self.participants = tuple(participants)
         self.config = config or ConsensusConfig()
         self.normalizer = normalizer
+        collected: list[Participant] = []
+        for participant in participants:
+            if len(collected) >= self.config.max_participants:
+                raise ConfigurationError(
+                    f"participant count exceeds max_participants={self.config.max_participants}"
+                )
+            collected.append(participant)
+        self.participants = tuple(collected)
 
         if not callable(self.normalizer):
             raise ConfigurationError("normalizer must be callable")
         if not self.participants:
             raise ConfigurationError("at least one participant is required")
-        if len(self.participants) > self.config.max_participants:
-            raise ConfigurationError(
-                f"participant count exceeds max_participants={self.config.max_participants}"
-            )
         if self.config.min_successful > len(self.participants):
             raise ConfigurationError("min_successful cannot exceed the number of participants")
         _validate_unique_names(participant.name for participant in self.participants)

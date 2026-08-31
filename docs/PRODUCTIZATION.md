@@ -638,6 +638,41 @@ The follow-up's exact-head CI, installed artifact and source-archive evidence be
 verification record; an older wheel cannot prove this runtime fix. No new public API, dependency,
 license term, version, publisher configuration or sibling-repository change is included.
 
+## Bounded roster collection follow-up (2026-08-31)
+
+Revalidation at `0f4c657f8985befa90a210268e1ac6bc845e43dd` confirmed green terminal CI, a clean
+`main`, no open issues/PRs and unchanged owner publication gates. Before treating those gates as an
+impasse, inspection of the `Iterable[Participant]` constructor found a locally actionable resource
+gap: it converted the entire iterable to a tuple before checking `max_participants`. A bounded
+reproduction configured a cap of 3 and observed all 100 entries consumed before rejection. An
+unbounded or very large dynamic registry therefore could defeat the intended collection bound.
+
+The constructor now accumulates only a permitted roster and rejects the first excess entry. It
+consumes at most `max_participants + 1` entries, does not silently truncate or drain the input, and
+preserves valid snapshot order, repeat runs and large positive integer caps. The caller continues to
+own the iterator; the library neither closes it nor hides errors it raises before the cap. Work
+inside a single iterator step remains synchronous and caller-owned, not preempted or sandboxed.
+The explicitly uncapped synchronous `evaluate_votes` helper was not changed.
+
+The focused suite failed four cases and passed six controls before the fix, then passed all ten.
+It covers caps 1/3/32, valid snapshots/reuse, remaining iterator contents after rejection, registry
+errors, very large caps and independence from length-hint preallocation. The installed-wheel checker
+now has seven checks, including the same cap=3 consumption assertion.
+
+| Command | Local Windows Python 3.14.7 result |
+| --- | --- |
+| `python -m pytest tests/test_roster_bounds.py -q --no-cov --tb=no` before the fix | 4 failed, 6 passed |
+| `python -m pytest tests/test_roster_bounds.py -q --no-cov` after the fix | 10 passed |
+| `python -m pytest -q` | 241 passed; 98.18% core coverage |
+| `python -m ruff format --check .` / `python -m ruff check .` / `python -m mypy agent_consensus` | Passed |
+| `git diff --check` | Passed |
+
+The API guide documents both the new collection bound and its cooperative iterator limitation.
+Exact-head hosted and downloaded-artifact checks belong in the follow-up commit record. No new API,
+provider coupling, vote arithmetic, automatic iterator cleanup, publication or legal change is
+included. This is concrete engineering progress; the still-unanswered license/publication/adoption
+gates are not treated as permission to publish or expand into sibling repositories.
+
 ## Mission evidence map (2026-08-31)
 
 This map ties the original numbered mission to concrete evidence rather than treating a green test
