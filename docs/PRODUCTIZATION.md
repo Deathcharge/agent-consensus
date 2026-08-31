@@ -1,6 +1,6 @@
 # Productization record
 
-Last updated: 2026-08-01
+Last updated: 2026-08-31
 
 This is the living audit and release record for `Deathcharge/agent-consensus`.
 
@@ -205,6 +205,9 @@ agent framework.
 - [x] No truthful security/trust-boundary documentation.
 - [x] Consensus results lacked a composable, fail-closed operational policy layer for real release,
   routing, or output-safety gates.
+- [x] Successful-weight policy tolerances could forgive a genuine shortfall at large or tiny
+  scales. The gate now sums decimal outcome weights exactly, independent of rounded summaries;
+  integer minimums that change decimal value during normalization are rejected.
 - [x] Current-facing ownership, support, conduct, citation, and attribution metadata used obsolete or
   fictional identities.
 - [ ] Owner must verify distribution-name availability and ownership before publication.
@@ -346,6 +349,47 @@ build/check, installed-wheel, and all-example jobs for implementation head
 publication, a real external consumer, and paid-provider calls remain intentionally outside local
 verification.
 
+## Successful-weight boundary verification (2026-08-31)
+
+PR #12 was merged at `e7632fc`; this iteration started from clean `main` at `2cc7066` after the
+contributor-tool updates in PR #13. That baseline passed 82 tests (96.96% coverage), but a minimum of
+`1e12 + 0.5` incorrectly passed with only `1e12` successful weight. Tiny shortfalls, inflated summary
+totals, and integer minimums rounded down to floats exposed equivalent routes. Fifteen new
+regression cases failed against the original implementation before the patch.
+
+The fix recomputes successful weight from successful outcomes using exact decimal rational
+arithmetic, without changing consensus tally arithmetic. Policy construction rejects integer
+minimums that cannot retain their decimal value in the existing schema-v1 float representation.
+The numeric contract and computed-float limitations are documented in `DECISION_GATES.md`.
+An independent read-only candidate review found no surviving concrete bypass or regression.
+
+Verification used a fresh Windows Python 3.14.7 environment installed from `requirements-dev.txt`;
+the complete suite also ran on Windows Python 3.11.9. A separate, dependency-free environment
+installed the wheel and ran outside the checkout with Python isolated mode (`-I`).
+
+| Command | Actual result |
+| --- | --- |
+| `git diff --check` | Exit 0; no whitespace errors |
+| `python -m ruff format --check .` / `python -m ruff check .` | Exit 0; format and lint passed |
+| `python -m mypy agent_consensus` | Exit 0; 6 source files passed strict typing |
+| `python -m pytest tests/test_policy.py -q --no-cov` | Exit 0; 54 passed |
+| `python -m pytest` / `py -3.11 -m pytest -q` | Exit 0; 106 passed on each interpreter; 97.18% coverage |
+| `python -m build --outdir <fresh-temp>/dist` | Exit 0; wheel built from fresh sdist |
+| `python -m twine check <fresh-temp>/dist/*` | Both artifacts passed |
+| `<wheel-env>/python -m pip install --no-deps <wheel>` / `pip check` | Installed successfully; no broken requirements |
+| `<wheel-env>/python -I -c '<import-path and boundary assertions>'` outside checkout | Imported from the new environment's site-packages; large shortfall rejected and `0.1 + 0.7` control accepted |
+| `<wheel-env>/python -I <absolute-example-path>` | All seven examples passed |
+
+The existing policy digest golden vector remains unchanged. Additional controls cover outcome
+ordering, weight scaling, independence from the host decimal context, integer normalization, and
+async error/timeout/invalid-response paths. Only complete successful evidence contributes weight.
+
+The earlier formal diff-scan publication failed; its terminal status was rechecked and no completed
+report is available. The targeted reproduction, independent review, and checks above are evidence
+for this fix, not a claim of a completed repository-wide security audit. Exact-head hosted CI and
+artifact hashes are recorded in the pull request. Package publication and external production
+adoption are not part of this verification.
+
 ## Deferred work and rationale
 
 - Provider adapters: demand and maintenance burden are unknown; injection already supports them.
@@ -384,8 +428,8 @@ verification.
   must use non-blocking clients or explicitly move blocking work to a bounded thread executor.
 - Result metadata can be non-JSON or sensitive because it is caller-owned.
 - Public package-index installation evidence does not exist until the owner exercises the
-  publication gates. Hosted CI evidence exists for both the merged 0.2 release-candidate work and
-  the decision-gate implementation head on draft PR #12.
+  publication gates. Hosted CI evidence exists for the merged 0.2 release-candidate work and the
+  decision-gate implementation on merged PR #12; each subsequent candidate needs its own CI record.
 
 ## Distribution and sustainability
 

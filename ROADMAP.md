@@ -11,9 +11,9 @@ not own provider clients, agent conversations, persistence, deployment execution
 authorization. Other Samsarix repositories may consume its public API, but none is a runtime
 dependency.
 
-Current disposition: the original productization work is merged and hosted CI evidence exists. The
-decision-gate capability is the next reviewable release-candidate slice. Publication and production
-adoption remain owner-controlled decisions.
+Current disposition: the original productization work and decision-gate capability are merged
+(PR #12). Successful-weight boundary hardening is the current release-candidate patch. Publication
+and production adoption remain owner-controlled decisions.
 
 ## Release-candidate priorities
 

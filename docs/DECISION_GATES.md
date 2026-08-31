@@ -50,6 +50,29 @@ required reviewer remains blocked while both reason codes are retained for audit
 
 ## Choice and identity contracts
 
+### Minimum successful weight
+
+The minimum-weight gate sums the decimal spellings (`str(weight)`) of successful participant
+outcome weights exactly and compares that sum with `str(policy.min_successful_weight)`. It uses
+standard-library rational arithmetic, with no absolute or relative tolerance. Thus `0.1` and `0.7`
+together satisfy `0.8`, but a single `0.7999999999999999` does not. Neither `1e12` against
+`1e12 + 0.5` nor `1e-15` against `2e-15` can pass. Errors and timeouts contribute no successful weight.
+
+Consensus tallies, agreement, and the serialized `successful_weight` summary retain their existing
+floating-point arithmetic. The gate recomputes its minimum check from outcomes; a rounded or
+slightly inflated summary does not grant permission. The verdict's embedded outcomes and policy
+snapshot are sufficient to reproduce this decimal calculation. This does not authenticate evidence.
+
+Float inputs are interpreted as supplied, not as the expressions that produced them: a minimum
+computed as `0.1 + 0.2` is `0.30000000000000004`, not `0.3`. Configure a reviewed decimal literal or
+integer scale when that distinction matters. Minima remain serialized as floats under schema v1;
+integer minima that would change decimal value during normalization (for example `2**53 + 1`)
+raise `ConfigurationError` instead of silently changing the rule. Existing accepted policy snapshots
+and their digests are unchanged. This rule tightens evaluation behavior, so record the library
+version/commit alongside persisted verdicts; a policy digest alone does not identify the evaluator.
+
+### Vocabulary and participant identity
+
 Policy choices match `ChoiceTally.normalized_choice` exactly. Under the default normalizer, use
 lowercase, whitespace-collapsed strings. When supplying a custom normalizer, configure and test the
 policy against its exact output vocabulary.

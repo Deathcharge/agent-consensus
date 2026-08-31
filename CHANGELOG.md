@@ -23,7 +23,9 @@ This project follows semantic versioning. Dates use ISO 8601.
 - Consolidated threshold and quorum-setting validation across public entry points
 - Made immutable participant responses safely hashable without hashing caller-owned metadata
 - Corrected review-discovered documentation and metadata-serialization coverage gaps
-- Made successful-weight policy boundaries tolerant of insignificant floating-point roundoff
+- Enforce minimum successful weight using exact decimal-spelling sums from participant outcomes,
+  preventing large- and tiny-scale tolerance bypasses while preserving `0.1 + 0.7` against `0.8`
+- Reject integer policy minima that would silently change during float normalization
 
 ## 0.2.0 - 2026-07-28
 
