@@ -72,8 +72,9 @@ jobs:
       - run: python -m twine check dist/*
       - run: python -m venv .package-venv
       - run: .package-venv/bin/python -m pip install --no-deps dist/*.whl
-      - run: .package-venv/bin/python -c "import agent_consensus; print(agent_consensus.__version__)"
+      - run: .package-venv/bin/python -m pip check
+      - run: .package-venv/bin/python -I scripts/check_installed.py
       - run: |
           for example in examples/*.py; do
-            .package-venv/bin/python "$example"
+            .package-venv/bin/python -I "$example"
           done

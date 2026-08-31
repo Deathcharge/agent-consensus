@@ -1,6 +1,7 @@
 """Tests for deterministic vote evaluation and public models."""
 
 import json
+from itertools import permutations
 
 import pytest
 
@@ -65,6 +66,23 @@ def test_evaluate_votes_respects_weights() -> None:
     assert result.choice == "ship"
     assert result.agreement == 0.75
     assert result.total_weight == 4
+
+
+@pytest.mark.parametrize("weights", [(1e-15, 1.0, 0.1), (0.1, 0.2, 0.7999999999999999)])
+def test_fractional_unanimity_is_exactly_one_in_every_order(weights: tuple[float, ...]) -> None:
+    for ordering in permutations(weights):
+        result = evaluate_votes(
+            [Vote(str(index), "approve", weight) for index, weight in enumerate(ordering)],
+            threshold=1.0,
+        )
+        assert result.agreed
+        assert result.agreement == 1.0
+        assert result.successful_weight == result.total_weight == result.tallies[0].weight
+
+
+def test_aggregate_weight_overflow_is_a_configuration_error() -> None:
+    with pytest.raises(ConfigurationError, match="total participant weight"):
+        evaluate_votes([Vote("a", "approve", 1e308), Vote("b", "approve", 1e308)])
 
 
 def test_evaluate_votes_supports_explicit_custom_normalization() -> None:

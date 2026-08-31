@@ -232,8 +232,9 @@ python examples/07_policy_panel.py
 ```
 
 CI is configured to run formatting, linting, strict type checking, coverage, Python 3.10–3.14 tests,
-a Windows smoke test, artifact checks, isolated wheel installation, and every example. It does not
-publish artifacts.
+a Windows test run, artifact checks, isolated wheel installation, and every example. The installed
+wheel also runs a release-consumer simulation covering pass, veto, unknown choice, unavailable
+reviewer, and host-owned audit redaction (`scripts/check_installed.py`). It does not publish artifacts.
 
 ## Package and release
 

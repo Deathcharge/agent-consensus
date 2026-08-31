@@ -13,6 +13,10 @@ This project follows semantic versioning. Dates use ISO 8601.
 - A complete offline release-gate example and decision-gate integration guide
 - A provider-neutral policy-panel example and optional integration cookbook
 - A package-specific `DecisionInputError` that remains compatible with `TypeError`
+- An isolated installed-wheel consumer check covering artifact identity, numeric boundaries,
+  release enforcement and caller-owned audit redaction without extra test dependencies
+- Bounded exhaustive invariants for policy precedence, normalization, ordering, policy strengthening,
+  and an independent decimal oracle for weight boundaries
 
 ### Changed
 
@@ -23,7 +27,12 @@ This project follows semantic versioning. Dates use ISO 8601.
 - Consolidated threshold and quorum-setting validation across public entry points
 - Made immutable participant responses safely hashable without hashing caller-owned metadata
 - Corrected review-discovered documentation and metadata-serialization coverage gaps
-- Made successful-weight policy boundaries tolerant of insignificant floating-point roundoff
+- Enforce minimum successful weight using exact decimal-spelling sums from participant outcomes,
+  preventing large- and tiny-scale tolerance bypasses while preserving `0.1 + 0.7` against `0.8`
+- Reject integer policy minima that would silently change during float normalization
+- Run installed-wheel checks and all examples in Python isolated mode to prevent checkout imports
+- Accumulate tallies and totals consistently to preserve fractional unanimity and agreement bounds;
+  reject overflowing aggregate weights before async participant execution
 
 ## 0.2.0 - 2026-07-28
 

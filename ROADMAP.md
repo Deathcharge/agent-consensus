@@ -11,9 +11,10 @@ not own provider clients, agent conversations, persistence, deployment execution
 authorization. Other Samsarix repositories may consume its public API, but none is a runtime
 dependency.
 
-Current disposition: the original productization work is merged and hosted CI evidence exists. The
-decision-gate capability is the next reviewable release-candidate slice. Publication and production
-adoption remain owner-controlled decisions.
+Current disposition: the original productization work and decision-gate capability are merged
+(PR #12). Successful-weight boundary hardening, consistent fractional tallying, generated invariant
+tests, and isolated artifact checks are the current release-candidate patch. Publication and
+production adoption remain owner-controlled decisions.
 
 ## Release-candidate priorities
 
@@ -28,12 +29,15 @@ adoption remain owner-controlled decisions.
 
 1. Prove the documented policy-panel recipe in a separate package consumer with a pinned producer
    version and a versioned contract fixture.
-2. Add property-based invariants for policy precedence, normalization, weight arithmetic, and input
-   ordering.
-3. Define a small versioned JSON Schema for persisted consensus/verdict audit records if a real
+2. Define a small versioned JSON Schema for persisted consensus/verdict audit records if a real
    consumer needs interchange.
-4. Add an optional OpenTelemetry integration recipe only after adopters identify required fields
+3. Add an optional OpenTelemetry integration recipe only after adopters identify required fields
    and redaction boundaries.
+
+Bounded exhaustive invariants now cover policy precedence, normalization, input ordering, policy
+strengthening and decimal successful-weight boundaries. Expand their finite input spaces when real
+consumers supply additional edge cases. Installed-wheel checks include a consumer-owned release
+simulation, but that does not replace the separate real-consumer milestone above.
 
 ## Deliberate deferrals
 

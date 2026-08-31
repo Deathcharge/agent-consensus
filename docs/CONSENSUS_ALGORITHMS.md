@@ -41,6 +41,14 @@ The result is `agreed` only when:
 Failures remain in the denominator. With three equal participants, two `approve` responses and one
 timeout produce `2 / 3`, not `1.0`.
 
+Tallies and totals use the same accurate floating-point summation (`math.fsum`). This avoids
+different accumulation methods reporting unanimous fractional votes above or below 100%. A combined
+weight that overflows a finite float is rejected with `ConfigurationError`; the async engine checks
+this before invoking adapters. Threshold division remains floating-point arithmetic, so configure
+weights at a meaningful scale rather than relying on distinctions smaller than float precision.
+The policy layer's minimum successful-weight rule uses a separate exact decimal contract; see
+[decision gates](DECISION_GATES.md#minimum-successful-weight).
+
 ## Quorum
 
 Quorum is a count of successful, validated participant responses. It is separate from weighted
@@ -53,6 +61,9 @@ all match. Callers should normally fail closed or request human review.
 
 Equal leading weights always produce `no_consensus`. This rule holds at a 0.5 threshold and prevents
 participant order from deciding the outcome.
+
+Near-equal leading weights also count as tied using `rel_tol=1e-12` and `abs_tol=1e-12`. This
+conservative tie rule does not relax the policy layer's minimum successful-weight requirement.
 
 Tallies are returned in deterministic order: descending weight, then normalized choice.
 

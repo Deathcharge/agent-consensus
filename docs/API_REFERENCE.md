@@ -119,6 +119,11 @@ deterministic SHA-256 digest over schema version 1 and the complete normalized p
 sorted, compact `,`/`:` separators, Unicode preserved, finite weights normalized to JSON numbers,
 and no `digest` field. Set-like values are sorted before encoding.
 
+The successful-weight minimum uses an exact sum of each successful outcome's decimal weight
+spelling, not a tolerant comparison against the floating-point summary. Integer minimums that
+cannot retain their decimal value in the normalized float raise `ConfigurationError`. See the
+[numeric contract](DECISION_GATES.md#minimum-successful-weight), including computed-float behavior.
+
 ## `evaluate_decision`
 
 ```python

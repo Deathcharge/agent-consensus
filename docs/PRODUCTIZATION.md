@@ -1,6 +1,6 @@
 # Productization record
 
-Last updated: 2026-08-01
+Last updated: 2026-08-31
 
 This is the living audit and release record for `Deathcharge/agent-consensus`.
 
@@ -205,6 +205,9 @@ agent framework.
 - [x] No truthful security/trust-boundary documentation.
 - [x] Consensus results lacked a composable, fail-closed operational policy layer for real release,
   routing, or output-safety gates.
+- [x] Successful-weight policy tolerances could forgive a genuine shortfall at large or tiny
+  scales. The gate now sums decimal outcome weights exactly, independent of rounded summaries;
+  integer minimums that change decimal value during normalization are rejected.
 - [x] Current-facing ownership, support, conduct, citation, and attribution metadata used obsolete or
   fictional identities.
 - [ ] Owner must verify distribution-name availability and ownership before publication.
@@ -212,7 +215,7 @@ agent framework.
 ### P2
 
 - [ ] Add separately distributed provider adapter examples after users identify demanded providers.
-- [ ] Add property-based invariants for policy precedence, normalization, weights, and ordering.
+- [x] Add bounded generated invariants for policy precedence, normalization, weights, and ordering.
 - [ ] Add signed provenance/SBOM in a publication workflow once release ownership is decided.
 - [ ] Reassess dropping Python 3.10 after its scheduled October 2026 end of life.
 - [ ] Owner must explicitly retain MIT or select Apache-2.0/MPL-2.0 after confirming the copyright
@@ -346,6 +349,71 @@ build/check, installed-wheel, and all-example jobs for implementation head
 publication, a real external consumer, and paid-provider calls remain intentionally outside local
 verification.
 
+## Successful-weight boundary verification (2026-08-31)
+
+PR #12 was merged at `e7632fc`; this iteration started from clean `main` at `2cc7066` after the
+contributor-tool updates in PR #13. That baseline passed 82 tests (96.96% coverage), but a minimum of
+`1e12 + 0.5` incorrectly passed with only `1e12` successful weight. Tiny shortfalls, inflated summary
+totals, and integer minimums rounded down to floats exposed equivalent routes. Fifteen new
+regression cases failed against the original implementation before the patch.
+
+The fix recomputes successful weight from successful outcomes using exact decimal rational
+arithmetic, without changing consensus tally arithmetic. Policy construction rejects integer
+minimums that cannot retain their decimal value in the existing schema-v1 float representation.
+The numeric contract and computed-float limitations are documented in `DECISION_GATES.md`.
+An independent read-only candidate review found no surviving concrete bypass or regression.
+
+Verification used a fresh Windows Python 3.14.7 environment installed from `requirements-dev.txt`;
+the complete suite also ran on Windows Python 3.11.9. A separate, dependency-free environment
+installed the wheel and ran outside the checkout with Python isolated mode (`-I`).
+
+| Command | Actual result |
+| --- | --- |
+| `git diff --check` | Exit 0; no whitespace errors |
+| `python -m ruff format --check .` / `python -m ruff check .` | Exit 0; format and lint passed |
+| `python -m mypy agent_consensus` | Exit 0; 6 source files passed strict typing |
+| `python -m pytest tests/test_policy.py -q --no-cov` | Exit 0; 54 passed |
+| `python -m pytest` / `py -3.11 -m pytest -q` | Exit 0; 106 passed on each interpreter; 97.18% coverage |
+| `python -m build --outdir <fresh-temp>/dist` | Exit 0; wheel built from fresh sdist |
+| `python -m twine check <fresh-temp>/dist/*` | Both artifacts passed |
+| `<wheel-env>/python -m pip install --no-deps <wheel>` / `pip check` | Installed successfully; no broken requirements |
+| `<wheel-env>/python -I -c '<import-path and boundary assertions>'` outside checkout | Imported from the new environment's site-packages; large shortfall rejected and `0.1 + 0.7` control accepted |
+| `<wheel-env>/python -I <absolute-example-path>` | All seven examples passed |
+
+The existing policy digest golden vector remains unchanged. Additional controls cover outcome
+ordering, weight scaling, independence from the host decimal context, integer normalization, and
+async error/timeout/invalid-response paths. Only complete successful evidence contributes weight.
+
+The earlier formal diff-scan publication failed; its terminal status was rechecked and no completed
+report is available. The targeted reproduction, independent review, and checks above are evidence
+for this fix, not a claim of a completed repository-wide security audit. Exact-head hosted CI and
+artifact hashes are recorded in the pull request. Package publication and external production
+adoption are not part of this verification.
+
+## Artifact and generated-invariant follow-up (2026-08-31)
+
+The installed-wheel CI smoke previously ran an import from the checkout, which could resolve source
+instead of the installed artifact. CI now runs `scripts/check_installed.py` and all seven examples
+with `-I`, asserts package location and distribution metadata, and checks dependency consistency.
+The source distribution includes this verification script and the roadmap. The script exercises a
+consumer-owned release simulation with approved, vetoed, unknown-choice and unavailable-reviewer
+outcomes and an explicit audit-field allowlist. It is not a claim of external adoption.
+
+New bounded exhaustive tests enumerate 4,608 policy/order configurations, 2,048 exact-decimal
+boundary comparisons and 256 policy-strengthening comparisons. The independent Decimal oracle
+exposed a second defect: 24 of its 512 fractional panels generated agreement above 1.0 on Python
+3.14, then failed evidence validation. Tally accumulation used repeated addition while totals used
+Python's `sum`. Both now use the same [accurate floating-point summation](https://docs.python.org/3/library/math.html#math.fsum).
+Aggregate overflow is a configuration error, checked before async adapter execution. The
+floating-point threshold/tie semantics remain distinct from the exact policy minimum.
+
+The final source suite passes **115 tests with 97.22% coverage** on Windows Python 3.14.7 and 3.11.9.
+Formatting, lint and strict package typing pass. Four dependency-free installed-wheel checks and all
+seven examples are required in addition to the source suite; the exact-head build/install/CI record
+and artifact hashes are recorded in the pull request. The earlier independent security-fix review
+covered the minimum-weight patch; the generated-invariant follow-up was reviewed locally with
+separate static, async, overflow, decimal-oracle, and installed-wheel regressions.
+
 ## Deferred work and rationale
 
 - Provider adapters: demand and maintenance burden are unknown; injection already supports them.
@@ -384,8 +452,8 @@ verification.
   must use non-blocking clients or explicitly move blocking work to a bounded thread executor.
 - Result metadata can be non-JSON or sensitive because it is caller-owned.
 - Public package-index installation evidence does not exist until the owner exercises the
-  publication gates. Hosted CI evidence exists for both the merged 0.2 release-candidate work and
-  the decision-gate implementation head on draft PR #12.
+  publication gates. Hosted CI evidence exists for the merged 0.2 release-candidate work and the
+  decision-gate implementation on merged PR #12; each subsequent candidate needs its own CI record.
 
 ## Distribution and sustainability
 

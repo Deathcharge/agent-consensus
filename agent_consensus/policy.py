@@ -9,6 +9,7 @@ import re
 from collections.abc import Collection
 from dataclasses import dataclass, field
 from enum import Enum
+from fractions import Fraction
 from typing import Any
 
 from .errors import ConfigurationError, DecisionInputError
@@ -148,16 +149,27 @@ class DecisionPolicy:
         if (
             isinstance(self.min_successful_weight, bool)
             or not isinstance(self.min_successful_weight, (int, float))
-            or not math.isfinite(self.min_successful_weight)
             or self.min_successful_weight < 0
         ):
             raise ConfigurationError("min_successful_weight must be finite and non-negative")
+        try:
+            minimum = float(self.min_successful_weight)
+        except OverflowError as error:
+            raise ConfigurationError("min_successful_weight must be finite") from error
+        if not math.isfinite(minimum):
+            raise ConfigurationError("min_successful_weight must be finite and non-negative")
+        if isinstance(self.min_successful_weight, int) and (
+            Fraction(str(minimum)) != self.min_successful_weight
+        ):
+            raise ConfigurationError(
+                "min_successful_weight cannot change decimal value during float normalization"
+            )
 
         object.__setattr__(self, "pass_choices", pass_choices)
         object.__setattr__(self, "veto_choices", veto_choices)
         object.__setattr__(self, "allowed_choices", allowed_choices)
         object.__setattr__(self, "required_participants", required_participants)
-        object.__setattr__(self, "min_successful_weight", float(self.min_successful_weight))
+        object.__setattr__(self, "min_successful_weight", minimum)
 
     def _content_dict(self) -> dict[str, Any]:
         """Return the canonical policy content covered by the digest."""
@@ -269,7 +281,6 @@ def _is_consensus_evidence_consistent(consensus: ConsensusResult) -> bool:
 
     outcome_by_participant = {}
     successful_outcomes = []
-    total_weight = 0.0
     for outcome in consensus.outcomes:
         if (
             not isinstance(outcome.participant, str)
@@ -287,11 +298,14 @@ def _is_consensus_evidence_consistent(consensus: ConsensusResult) -> bool:
         if is_successful is not has_response:
             return False
         outcome_by_participant[outcome.participant] = outcome
-        total_weight += outcome.weight
         if is_successful:
             successful_outcomes.append(outcome)
 
-    successful_weight = sum(outcome.weight for outcome in successful_outcomes)
+    try:
+        total_weight = math.fsum(outcome.weight for outcome in consensus.outcomes)
+    except OverflowError:
+        return False
+    successful_weight = math.fsum(outcome.weight for outcome in successful_outcomes)
     if (
         consensus.total_count != len(consensus.outcomes)
         or consensus.successful_count != len(successful_outcomes)
@@ -328,7 +342,7 @@ def _is_consensus_evidence_consistent(consensus: ConsensusResult) -> bool:
             return False
         if any(participant not in successful_participants for participant in tally.participants):
             return False
-        expected_weight = sum(
+        expected_weight = math.fsum(
             outcome_by_participant[participant].weight for participant in tally.participants
         )
         first_response = outcome_by_participant[tally.participants[0]].response
@@ -443,12 +457,17 @@ def evaluate_decision(
         reasons.append(DecisionReason.WINNING_CHOICE_NOT_PERMITTED)
     if unavailable_required:
         reasons.append(DecisionReason.REQUIRED_PARTICIPANT_UNAVAILABLE)
-    if consensus.successful_weight < policy.min_successful_weight and not math.isclose(
-        consensus.successful_weight,
-        policy.min_successful_weight,
-        rel_tol=1e-12,
-        abs_tol=1e-12,
-    ):
+    # Tolerances can forgive missing participants at large or tiny scales. Sum
+    # decimal spellings exactly, using outcomes rather than the rounded summary.
+    successful_weight = sum(
+        (
+            Fraction(str(outcome.weight))
+            for outcome in consensus.outcomes
+            if outcome.status is ResponseStatus.SUCCESS and outcome.response is not None
+        ),
+        Fraction(),
+    )
+    if successful_weight < Fraction(str(policy.min_successful_weight)):
         reasons.append(DecisionReason.SUCCESSFUL_WEIGHT_BELOW_MINIMUM)
     if unexpected_choices:
         reasons.append(DecisionReason.UNEXPECTED_CHOICE)

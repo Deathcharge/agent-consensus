@@ -1,19 +1,27 @@
 """Tests for fail-closed operational decision policies."""
 
+import asyncio
 import json
+import math
 from collections.abc import Callable
 from dataclasses import replace
+from decimal import localcontext
+from itertools import permutations
 
 import pytest
 
 from agent_consensus import (
     ConfigurationError,
+    ConsensusConfig,
+    ConsensusEngine,
     ConsensusResult,
     ConsensusStatus,
     DecisionInputError,
     DecisionPolicy,
     DecisionReason,
     DecisionStatus,
+    Participant,
+    ParticipantResponse,
     Vote,
     evaluate_decision,
     evaluate_votes,
@@ -122,6 +130,105 @@ def test_successful_weight_boundary_tolerates_floating_point_roundoff() -> None:
 
     assert consensus.successful_weight < 0.8
     assert verdict.status is DecisionStatus.PASSED
+
+
+@pytest.mark.parametrize(
+    ("weight", "minimum"),
+    [
+        (1e12, 1e12 + 0.5),
+        (1e-15, 2e-15),
+        (0.8, math.nextafter(0.8, math.inf)),
+        (math.nextafter(0.8, 0.0), 0.8),
+        (5e-324, 1e-323),
+        (0.3, 0.1 + 0.2),
+    ],
+)
+def test_minimum_weight_rejects_every_decimal_shortfall(weight: float, minimum: float) -> None:
+    result = evaluate_votes([Vote("reviewer", "approve", weight)])
+
+    verdict = evaluate_decision(result, DecisionPolicy(min_successful_weight=minimum))
+
+    assert verdict.status is DecisionStatus.INDETERMINATE
+    assert verdict.reasons == (DecisionReason.SUCCESSFUL_WEIGHT_BELOW_MINIMUM,)
+
+
+@pytest.mark.parametrize("failure", ["error", "timeout", "invalid"])
+@pytest.mark.parametrize(("weight", "missing"), [(1e12, 0.5), (1e-15, 1e-15)])
+@pytest.mark.asyncio
+async def test_failed_participant_cannot_be_forgiven_by_numeric_tolerance(
+    failure: str, weight: float, missing: float
+) -> None:
+    async def approve(prompt: str, *, max_tokens: int) -> ParticipantResponse:
+        return ParticipantResponse(choice="approve")
+
+    async def unavailable(prompt: str, *, max_tokens: int) -> ParticipantResponse:
+        if failure == "timeout":
+            await asyncio.Future()
+        if failure == "invalid":
+            return None  # type: ignore[return-value]
+        raise RuntimeError("unavailable")
+
+    engine = ConsensusEngine(
+        [Participant("available", approve, weight), Participant("missing", unavailable, missing)],
+        config=ConsensusConfig(min_successful=1, threshold=0.5, timeout_seconds=0.01),
+    )
+    result = await engine.run("release check")
+
+    verdict = evaluate_decision(result, DecisionPolicy(min_successful_weight=weight + missing))
+
+    assert result.agreed
+    assert verdict.status is DecisionStatus.INDETERMINATE
+    assert DecisionReason.SUCCESSFUL_WEIGHT_BELOW_MINIMUM in verdict.reasons
+
+
+def test_minimum_weight_does_not_trust_tolerated_summary_inflation() -> None:
+    result = evaluate_votes([Vote("reviewer", "approve", 1e12)])
+    inflated = replace(result, successful_weight=1e12 + 0.5)
+
+    verdict = evaluate_decision(inflated, DecisionPolicy(min_successful_weight=1e12 + 0.5))
+
+    assert verdict.status is DecisionStatus.INDETERMINATE
+    assert verdict.reasons == (DecisionReason.SUCCESSFUL_WEIGHT_BELOW_MINIMUM,)
+
+
+def test_overflowing_outcome_evidence_fails_consistency_validation() -> None:
+    result = evaluate_votes([Vote("a", "approve", 1e308)])
+    invalid = replace(
+        result, outcomes=(*result.outcomes, replace(result.outcomes[0], participant="b"))
+    )
+    with pytest.raises(DecisionInputError, match="internally inconsistent"):
+        evaluate_decision(invalid, DecisionPolicy())
+
+
+@pytest.mark.parametrize("minimum", [2**53 + 1, 10**18 + 128, 10**400])
+def test_minimum_weight_cannot_silently_change_during_float_normalization(minimum: int) -> None:
+    with pytest.raises(ConfigurationError, match="min_successful_weight"):
+        DecisionPolicy(min_successful_weight=minimum)
+
+
+@pytest.mark.parametrize("scale", [1e-15, 1.0, 1e12])
+def test_decimal_weight_sum_is_order_independent_and_scale_invariant(scale: float) -> None:
+    weights = [0.1 * scale, 0.2 * scale, 0.7 * scale]
+    for ordering in permutations(weights):
+        result = evaluate_votes(
+            [Vote(str(index), "approve", weight) for index, weight in enumerate(ordering)]
+        )
+        assert evaluate_decision(result, DecisionPolicy(min_successful_weight=scale)).passed
+
+
+def test_decimal_weight_gate_is_independent_of_host_decimal_context() -> None:
+    result = evaluate_votes([Vote("a", "approve", 0.1), Vote("b", "approve", 0.7)])
+    with localcontext() as context:
+        context.prec = 1
+        assert evaluate_decision(result, DecisionPolicy(min_successful_weight=0.8)).passed
+        assert not evaluate_decision(result, DecisionPolicy(min_successful_weight=0.81)).passed
+
+
+@pytest.mark.parametrize("minimum", [0, 2, 10**12, 10**23])
+def test_exact_integer_minimum_keeps_schema_v1_float_normalization(minimum: int) -> None:
+    policy = DecisionPolicy(min_successful_weight=minimum)
+    assert policy.to_dict()["min_successful_weight"] == float(minimum)
+    assert policy.digest == DecisionPolicy(min_successful_weight=float(minimum)).digest
 
 
 def test_unexpected_choice_fails_closed_even_with_approved_consensus() -> None:
