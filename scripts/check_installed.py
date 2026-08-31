@@ -6,7 +6,10 @@ This is a local consumer simulation, not evidence of external production adoptio
 
 from __future__ import annotations
 
+import contextlib
+import io
 import json
+import re
 import sys
 import unittest
 from importlib.metadata import distribution
@@ -28,6 +31,46 @@ from agent_consensus import (
 
 
 class InstalledWheelTests(unittest.IsolatedAsyncioTestCase):
+    def test_documented_primary_journeys(self) -> None:
+        # Execute only explicitly marked snippets in these trusted checkout documents.
+        # The -I invocation keeps their package imports bound to the installed wheel.
+        root = Path(__file__).resolve().parents[1]
+        guides = (
+            (
+                "README.md",
+                ("collected-votes", "async-consensus", "decision-gate"),
+                {"security", "reliability"},
+            ),
+            (
+                "docs/GETTING_STARTED.md",
+                (
+                    "collected-votes",
+                    "local-adapter",
+                    "async-consensus",
+                    "decision-gate",
+                    "result-states",
+                ),
+                {"policy-a", "policy-b"},
+            ),
+        )
+        for document, expected_ids, reviewers in guides:
+            with self.subTest(document=document):
+                snippets = re.findall(
+                    r"<!-- runnable: ([a-z-]+) -->\n```python\n(.*?)\n```",
+                    (root / document).read_text(encoding="utf-8"),
+                    re.DOTALL,
+                )
+                self.assertEqual(tuple(identifier for identifier, _ in snippets), expected_ids)
+                namespace = {}
+                with contextlib.redirect_stdout(io.StringIO()) as output:
+                    for identifier, source in snippets:
+                        exec(compile(source, f"{document}:{identifier}", "exec"), namespace)
+                result = namespace["result"]
+                self.assertEqual({outcome.participant for outcome in result.outcomes}, reviewers)
+                self.assertIs(namespace["verdict"].consensus, result)
+                self.assertTrue(namespace["verdict"].passed)
+                self.assertIn("action=permitted", output.getvalue())
+
     def test_import_and_distribution_shape(self) -> None:
         self.assertTrue(sys.flags.isolated, "Invoke this check with Python -I")
         package_path = Path(agent_consensus.__file__).resolve()

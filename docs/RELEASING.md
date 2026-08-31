@@ -44,7 +44,9 @@ python -I examples/01_basic_consensus.py
 `-I` excludes checkout paths and `PYTHONPATH` from imports. The check asserts that the installed
 package comes from the selected environment, checks version, licenses, typing marker and absence
 of runtime dependencies, and exercises a local release consumer's pass, veto, unknown-choice and
-unavailable-reviewer paths. It also checks strict successful-weight boundaries. This consumer
+unavailable-reviewer paths. It also checks strict successful-weight boundaries and executes the
+README/getting-started walkthroughs against the installed wheel, using the trusted checkout's docs.
+This consumer
 simulation is not evidence of external production adoption. The CI matrix must also be green on
 every supported Python version before publication.
 

@@ -65,6 +65,7 @@ python -m pip install -r requirements-dev.txt
 
 ## Quick start: collected votes
 
+<!-- runnable: collected-votes -->
 ```python
 from agent_consensus import Vote, evaluate_votes
 
@@ -86,12 +87,14 @@ print(result.agreement)  # 0.666...
 Each adapter is an async callable that accepts a prompt and the engine's output-token allocation.
 It must return `ParticipantResponse` with an explicit choice.
 
+<!-- runnable: async-consensus -->
 ```python
 import asyncio
 
 from agent_consensus import (
     ConsensusConfig,
     ConsensusEngine,
+    ConsensusResult,
     Participant,
     ParticipantResponse,
 )
@@ -110,7 +113,7 @@ async def reliability_review(prompt: str, *, max_tokens: int) -> ParticipantResp
     return ParticipantResponse(choice="approve", tokens_used=31)
 
 
-async def main() -> None:
+async def main() -> ConsensusResult:
     engine = ConsensusEngine(
         [
             Participant("security", security_review),
@@ -127,9 +130,10 @@ async def main() -> None:
     )
     result = await engine.run("Should release 1.4 proceed?")
     print(result.to_dict())
+    return result
 
 
-asyncio.run(main())
+result = asyncio.run(main())
 ```
 
 The engine does not retry. This keeps external side effects and API spending predictable; adapters
@@ -141,6 +145,11 @@ Consensus says what the group agreed on. A `DecisionPolicy` says whether the app
 that evidence. This separation supports release approvals, output guardrails, routing decisions,
 and other fail-closed workflows without changing the vote arithmetic.
 
+Continue in the same file with the `result` returned above. This example prints the local action
+disposition; it does not deploy anything. In your application, invoke the protected operation only
+inside the `PASSED` branch.
+
+<!-- runnable: decision-gate -->
 ```python
 from agent_consensus import DecisionPolicy, DecisionStatus, evaluate_decision
 
@@ -155,11 +164,11 @@ policy = DecisionPolicy(
 verdict = evaluate_decision(result, policy)
 
 if verdict.status is DecisionStatus.PASSED:
-    deploy()
+    print("action=permitted")
 elif verdict.status is DecisionStatus.BLOCKED:
-    stop(verdict.reasons)
+    print("action=blocked", [reason.value for reason in verdict.reasons])
 else:
-    request_review(verdict.reasons)
+    print("action=withheld", [reason.value for reason in verdict.reasons])
 ```
 
 An explicit veto or an agreed non-pass choice is `blocked`. Missing reviewers, insufficient
@@ -243,6 +252,10 @@ wheel also runs a release-consumer simulation covering pass, veto, unknown choic
 reviewer, and host-owned audit redaction (`scripts/check_installed.py`). Successful `main` push runs
 retain the tested wheel, sdist and checksum receipt for seven days in GitHub Actions. There is no
 automatic package-index publication or GitHub release.
+
+CI executes the README and getting-started Python snippets in their displayed order, verifies the
+async evidence reaches the policy, checks all gate dispositions, and repeats both walkthroughs
+against the isolated installed wheel.
 
 An optional [installed policy-engine consumer](https://github.com/Deathcharge/agent-consensus/tree/main/integrations/policy_engine) demonstrates
 a real structured authorization decision combined with readiness at an enforcement point. It has a

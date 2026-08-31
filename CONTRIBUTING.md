@@ -32,6 +32,13 @@ python -m twine check dist/*
 Tests enforce at least 95% branch-aware coverage of the package. Add behavior tests for error,
 timeout, cancellation, and budget paths when changing orchestration.
 
+README and getting-started Python snippets marked `<!-- runnable: ... -->` are executed by
+`tests/test_documented_examples.py` in the documented order. Keep them credential-free and local;
+test the exact displayed code, preserve result scope between steps, and exercise every gate branch.
+Mark every Python block in those guides; use text blocks for interface-signature references.
+`scripts/check_installed.py` also runs both walkthroughs against the isolated installed wheel.
+These tests execute trusted repository documentation only, not arbitrary external Markdown.
+
 ## Design expectations
 
 - Keep explicit decisions separate from supporting prose.

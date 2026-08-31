@@ -28,6 +28,9 @@ This project follows semantic versioning. Dates use ISO 8601.
 
 ### Changed
 
+- Fixed the README and getting-started async examples to return the collected result into the
+  documented policy step, replaced undefined action placeholders with explicit local dispositions,
+  and added executable documentation regressions for pass, veto, missing and unknown evidence
 - Pinned CI actions to reviewed immutable commit SHAs
 - Disabled persisted checkout credentials in every CI job
 - Updated the contributor test runner to pytest 9.0.3, closing CVE-2025-71176 in the pinned

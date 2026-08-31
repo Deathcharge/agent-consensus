@@ -14,13 +14,16 @@ python -m pip install .
 Confirm the installed public API:
 
 ```bash
-python -c "import agent_consensus; print(agent_consensus.__version__)"
+python -I -c "import agent_consensus; print(agent_consensus.__version__)"
 ```
 
 Expected version for this checkout: `0.2.0`.
+Isolated mode (`-I`) ensures this check imports the installed package rather than a module from the
+current checkout.
 
 ## Evaluate existing votes
 
+<!-- runnable: collected-votes -->
 ```python
 from agent_consensus import Vote, evaluate_votes
 
@@ -39,9 +42,9 @@ weights must be finite positive numbers.
 
 ## Adapt an async participant
 
-A participant adapter has one method contract:
+A participant adapter has this method signature (reference only):
 
-```python
+```text
 async def adapter(prompt: str, *, max_tokens: int) -> ParticipantResponse: ...
 ```
 
@@ -49,6 +52,7 @@ The adapter owns provider configuration, credentials, input-token limits, and an
 It should map provider output to a deliberately small decision vocabulary rather than put arbitrary
 prose in `choice`.
 
+<!-- runnable: local-adapter -->
 ```python
 from agent_consensus import ParticipantResponse
 
@@ -65,13 +69,19 @@ async def policy_reviewer(prompt: str, *, max_tokens: int) -> ParticipantRespons
 
 ## Run the engine
 
+Continue in the same Python file as the adapter above. `main()` returns the async result so the
+following policy step evaluates these reviewers, not the earlier collected-votes example.
+The two local responders are demonstration fixtures; real deployments must configure independently
+trusted reviewers. Save the combined snippets as `quickstart.py` and run `python quickstart.py`.
+
+<!-- runnable: async-consensus -->
 ```python
 import asyncio
 
-from agent_consensus import ConsensusConfig, ConsensusEngine, Participant
+from agent_consensus import ConsensusConfig, ConsensusEngine, ConsensusResult, Participant
 
 
-async def main() -> None:
+async def main() -> ConsensusResult:
     engine = ConsensusEngine(
         [
             Participant("policy-a", policy_reviewer),
@@ -88,15 +98,17 @@ async def main() -> None:
     )
     result = await engine.run("The rollout is documented.")
     print(result.status.value, result.choice)
+    return result
 
 
-asyncio.run(main())
+result = asyncio.run(main())
 ```
 
 ## Apply an operational policy
 
 Use a decision policy when consensus protects an action rather than merely reporting a result:
 
+<!-- runnable: decision-gate -->
 ```python
 from agent_consensus import DecisionPolicy, DecisionStatus, evaluate_decision
 
@@ -110,27 +122,32 @@ policy = DecisionPolicy(
 verdict = evaluate_decision(result, policy)
 
 if verdict.status is DecisionStatus.PASSED:
-    proceed()
+    print("action=permitted")
 elif verdict.status is DecisionStatus.BLOCKED:
-    stop(verdict.reasons)
+    print("action=blocked", [reason.value for reason in verdict.reasons])
 else:
-    request_human_review(verdict.reasons)
+    print("action=withheld", [reason.value for reason in verdict.reasons])
 ```
 
 Policy choice strings match normalized tally values exactly. With the default normalizer, use
 lowercase, whitespace-collapsed values. Only `passed` should authorize the protected action.
+The combined async example prints `agreed approve`, then `action=permitted`. These prints are local
+dispositions, not an executed deployment. Replace only the `PASSED` branch with your host operation;
+the other branches must withhold it. The installed-wheel release-consumer check exercises that
+enforcement pattern with an actual local callback.
 
 ## Handle every result state
 
+<!-- runnable: result-states -->
 ```python
 from agent_consensus import ConsensusStatus
 
 if result.status is ConsensusStatus.AGREED:
-    use(result.choice)
+    print(f"consensus-choice={result.choice}")
 elif result.status is ConsensusStatus.NO_CONSENSUS:
-    request_human_review(result.tallies)
+    print("consensus=incomplete; action withheld")
 else:  # quorum_failed
-    retry_later_or_fail_closed(result.outcomes)
+    print("consensus=quorum_failed; action withheld")
 ```
 
 The library never retries automatically. A retry may repeat an external side effect or amplify cost,

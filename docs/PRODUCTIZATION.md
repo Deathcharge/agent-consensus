@@ -210,6 +210,9 @@ agent framework.
   integer minimums that change decimal value during normalization are rejected.
 - [x] Current-facing ownership, support, conduct, citation, and attribution metadata used obsolete or
   fictional identities.
+- [x] Onboarding snippets kept the async result out of scope, reused earlier static evidence in the
+  policy step, and called undefined host-action placeholders. The actual snippets now have source
+  and isolated installed-wheel regressions.
 - [ ] Owner must verify distribution-name availability and ownership before publication.
 
 ### P2
@@ -555,6 +558,52 @@ CI/account access, an independent digest and stable local files remain assumptio
 formal scan does not cover this new release tooling. Package publication and license choice remain
 owner-gated; signed provenance and a real application's adoption evidence remain higher-value next
 gates than additional speculative runtime features.
+
+## Executable onboarding follow-up (2026-08-31)
+
+A broader goal audit at `dac0dcffb99d751b686b84b4183e53ff87131673` confirmed a clean synchronized
+`main`, successful exact-head CI, no open issues or PRs, and a verified downloadable candidate.
+Those checks did not prove the documented developer journey. Executing the getting-started Python
+snippets in their displayed order exposed a P1 onboarding defect: `main()` printed its async
+result but returned nothing, leaving the global `result` bound to the earlier `a`/`b`/`c` votes.
+The policy therefore produced `blocked`, then failed with `NameError: name 'stop' is not defined`,
+even though the preceding async example had printed `agreed approve`. README had the same scope
+trap and undefined host-operation placeholders.
+
+Both guides now return the async `ConsensusResult` into the next step and print explicit local
+action dispositions. They distinguish those prints from real deployment execution and explain that
+only the passed branch may invoke a host operation. The getting-started interface signature is
+plain reference text; all Python example blocks are runnable, explicitly marked and tested. Its
+installation check now uses `-I` to avoid accidentally importing checkout source.
+
+Ten tests execute the exact displayed snippets, verify that the policy receives the async evidence
+rather than the earlier static votes, and exercise approved, veto, missing-reviewer and unknown-choice
+branches for both guides. Missing, duplicate or unmarked example blocks fail the contract. The
+existing standard-library installed-wheel checker also runs both walkthroughs, now totaling five
+checks, so examples cannot pass solely because checkout imports work. These mechanisms execute
+trusted repository documentation only; they are not general Markdown execution features.
+
+Local checks on Windows Python 3.14.7:
+
+| Command | Result |
+| --- | --- |
+| `python -m pytest tests/test_documented_examples.py -q --no-cov` | 10 passed |
+| `python -m pytest -q` | 164 passed; core coverage remains 97.22% |
+| `python -m ruff format --check .` / `python -m ruff check .` / `python -m mypy agent_consensus` | Passed |
+| `<isolated-wheel-python> -I scripts/check_installed.py` | 5 passed, including both updated guides against the previously downloaded `dac0dcf` CI wheel |
+
+No runtime source/API, license, version, provider dependency or protected host action changed.
+The exact-head CI build and readback evidence for this follow-up must accompany its commit; the
+previous candidate's digest is not a digest of newly built files.
+
+A same-day primary-source refresh of [LangGraph parallel workflows](https://docs.langchain.com/oss/python/langgraph/workflows-agents),
+[Agents SDK blocking guardrails](https://openai.github.io/openai-agents-python/guardrails/), and
+the [consensus-weave package description](https://pypi.org/project/consensus-weave/) still supports the
+chosen composition boundary: deterministic evidence collection/evaluation complements broader
+workflow systems and explicit weighted-vote libraries. This is a scope inference, not a measured
+competitive ranking or demand claim. A reproducible first-use journey is actionable here; additional
+frameworks, provider adapters or telemetry still need consumer evidence. Publication ownership,
+license confirmation and actual application adoption remain separate gates.
 
 ## Deferred work and rationale
 
