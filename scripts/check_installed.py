@@ -12,6 +12,7 @@ import json
 import re
 import sys
 import unittest
+from dataclasses import replace
 from importlib.metadata import distribution
 from pathlib import Path
 
@@ -20,10 +21,12 @@ from agent_consensus import (
     ConfigurationError,
     ConsensusConfig,
     ConsensusEngine,
+    DecisionInputError,
     DecisionPolicy,
     DecisionStatus,
     Participant,
     ParticipantResponse,
+    ResponseValidationError,
     Vote,
     evaluate_decision,
     evaluate_votes,
@@ -115,6 +118,24 @@ class InstalledWheelTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(evaluate_decision(result, DecisionPolicy()).passed)
         with self.assertRaises(ConfigurationError):
             evaluate_votes([Vote("a", "approve", 1e308), Vote("b", "approve", 1e308)])
+
+    def test_numeric_error_contract_and_integer_preservation(self) -> None:
+        result = evaluate_votes([Vote("reviewer", "approve")])
+        for invalid in (10**400, -(10**400)):
+            with self.assertRaises(ConfigurationError):
+                ConsensusConfig(threshold=invalid)
+            with self.assertRaises(ConfigurationError):
+                ConsensusConfig(timeout_seconds=invalid)
+            with self.assertRaises(ResponseValidationError):
+                Vote("reviewer", "approve", invalid)
+            with self.assertRaises(ResponseValidationError):
+                ParticipantResponse("approve", confidence=invalid)
+            with self.assertRaises(DecisionInputError):
+                evaluate_decision(replace(result, total_weight=invalid), DecisionPolicy())
+        weight = 2**53 + 1
+        result = evaluate_votes([Vote("reviewer", "approve", weight)])
+        self.assertIs(result.outcomes[0].weight, weight)
+        self.assertTrue(evaluate_decision(result, DecisionPolicy()).passed)
 
     async def test_release_consumer_enforces_every_verdict(self) -> None:
         # Consumer-owned contract v1: source decisions must be explicit and closed-vocabulary.

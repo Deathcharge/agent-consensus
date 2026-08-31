@@ -19,6 +19,7 @@ from .models import (
     ConsensusResult,
     ConsensusStatus,
     ResponseStatus,
+    _is_finite_number,
 )
 
 POLICY_SCHEMA_VERSION = 1
@@ -266,10 +267,7 @@ def _is_consensus_evidence_consistent(consensus: ConsensusResult) -> bool:
         consensus.total_weight,
         consensus.threshold,
     )
-    if any(
-        isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value)
-        for value in numeric_fields
-    ):
+    if any(not _is_finite_number(value) for value in numeric_fields):
         return False
     if (
         not 0 <= consensus.agreement <= 1
@@ -287,9 +285,7 @@ def _is_consensus_evidence_consistent(consensus: ConsensusResult) -> bool:
             or not outcome.participant
             or outcome.participant in outcome_by_participant
             or not isinstance(outcome.status, ResponseStatus)
-            or isinstance(outcome.weight, bool)
-            or not isinstance(outcome.weight, (int, float))
-            or not math.isfinite(outcome.weight)
+            or not _is_finite_number(outcome.weight)
             or outcome.weight <= 0
         ):
             return False
@@ -334,9 +330,7 @@ def _is_consensus_evidence_consistent(consensus: ConsensusResult) -> bool:
             or tally.vote_count != len(tally.participants)
             or not tally.participants
             or len(set(tally.participants)) != len(tally.participants)
-            or isinstance(tally.weight, bool)
-            or not isinstance(tally.weight, (int, float))
-            or not math.isfinite(tally.weight)
+            or not _is_finite_number(tally.weight)
             or tally.weight <= 0
         ):
             return False

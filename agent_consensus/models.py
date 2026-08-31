@@ -15,6 +15,20 @@ MAX_NAME_CHARACTERS = 128
 MAX_CHOICE_CHARACTERS = 256
 
 
+def _is_finite_number(value: object) -> bool:
+    """Reject non-numbers and integers whose float conversion would overflow.
+
+    Checking finiteness must not leak a primitive conversion error or coerce
+    accepted integer weights away from their original exact value.
+    """
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return False
+    try:
+        return math.isfinite(value)
+    except OverflowError:
+        return False
+
+
 class ConsensusStatus(str, Enum):
     """Final state of a consensus evaluation."""
 
@@ -55,10 +69,7 @@ class ParticipantResponse:
         if not isinstance(self.content, str):
             raise ResponseValidationError("content must be a string")
         if self.confidence is not None and (
-            isinstance(self.confidence, bool)
-            or not isinstance(self.confidence, (int, float))
-            or not math.isfinite(self.confidence)
-            or not 0.0 <= self.confidence <= 1.0
+            not _is_finite_number(self.confidence) or not 0.0 <= self.confidence <= 1.0
         ):
             raise ResponseValidationError("confidence must be between 0 and 1")
         if self.tokens_used is not None and (
@@ -108,12 +119,7 @@ class Participant:
             )
         if not callable(self.responder):
             raise ConfigurationError("participant responder must be callable")
-        if (
-            isinstance(self.weight, bool)
-            or not isinstance(self.weight, (int, float))
-            or not math.isfinite(self.weight)
-            or self.weight <= 0
-        ):
+        if not _is_finite_number(self.weight) or self.weight <= 0:
             raise ConfigurationError("participant weight must be finite and positive")
         object.__setattr__(self, "name", normalized_name)
 
@@ -135,12 +141,7 @@ class Vote:
                 f"vote participant cannot exceed {MAX_NAME_CHARACTERS} characters"
             )
         ParticipantResponse(choice=self.choice)
-        if (
-            isinstance(self.weight, bool)
-            or not isinstance(self.weight, (int, float))
-            or not math.isfinite(self.weight)
-            or self.weight <= 0
-        ):
+        if not _is_finite_number(self.weight) or self.weight <= 0:
             raise ResponseValidationError("vote weight must be finite and positive")
         object.__setattr__(self, "participant", normalized_participant)
 
@@ -161,12 +162,7 @@ class ConsensusConfig:
 
     def __post_init__(self) -> None:
         _validate_decision_settings(self.threshold, self.min_successful)
-        if (
-            isinstance(self.timeout_seconds, bool)
-            or not isinstance(self.timeout_seconds, (int, float))
-            or not math.isfinite(self.timeout_seconds)
-            or self.timeout_seconds <= 0
-        ):
+        if not _is_finite_number(self.timeout_seconds) or self.timeout_seconds <= 0:
             raise ConfigurationError("timeout_seconds must be finite and positive")
         for field_name in (
             "max_concurrency",
@@ -285,12 +281,7 @@ def _validate_decision_settings(
     quorum_field: str = "min_successful",
 ) -> None:
     """Validate the decision settings shared by both public entry points."""
-    if (
-        isinstance(threshold, bool)
-        or not isinstance(threshold, (int, float))
-        or not math.isfinite(threshold)
-        or not 0 < threshold <= 1
-    ):
+    if not _is_finite_number(threshold) or not 0 < threshold <= 1:
         raise ConfigurationError("threshold must be greater than 0 and at most 1")
     if isinstance(min_successful, bool) or not isinstance(min_successful, int):
         raise ConfigurationError(f"{quorum_field} must be an integer")

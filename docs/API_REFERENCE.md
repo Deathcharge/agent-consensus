@@ -199,6 +199,11 @@ Important fields:
 Participant exceptions are isolated into sanitized outcomes. Configuration and caller-input errors
 are raised directly.
 
+Numeric fields requiring finite values reject NaN, infinities, booleans, numeric strings and Python
+integers too large for finite floating-point arithmetic. Rejection uses the corresponding package
+error above, not a leaked `OverflowError`. Accepted integer weights keep their original values;
+this validation does not coerce them to floats or change the exact decimal policy minimum.
+
 ## Compatibility import path
 
 `agent_consensus.multi_ai_consensus` re-exports the standalone types and aliases

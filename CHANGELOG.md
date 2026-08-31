@@ -28,6 +28,8 @@ This project follows semantic versioning. Dates use ISO 8601.
 
 ### Changed
 
+- Normalize oversized-integer numeric validation failures to the documented configuration,
+  response and decision-input exceptions; retain accepted integer weights without coercion
 - Fixed the README and getting-started async examples to return the collected result into the
   documented policy step, replaced undefined action placeholders with explicit local dispositions,
   and added executable documentation regressions for pass, veto, missing and unknown evidence

@@ -605,6 +605,60 @@ competitive ranking or demand claim. A reproducible first-use journey is actiona
 frameworks, provider adapters or telemetry still need consumer evidence. Publication ownership,
 license confirmation and actual application adoption remain separate gates.
 
+## Numeric error-contract follow-up (2026-08-31)
+
+The requirement audit at `3939dc227512b34b0b04840bda4c2585402831ad` found a caller-visible error
+contract gap. Python integers such as `10**400` caused `math.isfinite` to raise `OverflowError`
+before the public validators could raise their documented package errors. Six entry paths were
+reproduced: configuration/static thresholds, timeouts, participant/vote weights and confidence.
+The same primitive error escaped structural validation of numeric consensus evidence. This was an
+invalid-input reliability defect, not a demonstrated authorization bypass.
+
+A private shared finite-number predicate now rejects overflowing integers without converting
+accepted values in place. Configuration errors remain `ConfigurationError`, vote/response errors
+remain `ResponseValidationError`, and inconsistent numeric decision evidence raises
+`DecisionInputError`. The existing policy minimum's exact-decimal semantics, policy digests,
+threshold/tie arithmetic, accepted integer weights, and runtime dependency boundary are unchanged.
+
+The first focused regression run failed 26 cases and passed 23 controls before the fix. The final
+67-case suite also covers booleans/numeric strings, NaN/infinities, all affected numeric evidence
+fields, async error isolation and finite-value preservation. Positive controls include `2**53 + 1`,
+`10**308`, the largest finite float and the smallest positive float. The installed-wheel checker now
+has six checks, including numeric error and integer-preservation controls.
+
+| Command | Local Windows Python 3.14.7 result |
+| --- | --- |
+| `python -m pytest tests/test_numeric_validation.py -q --no-cov --tb=no` before the fix | 26 failed, 23 passed, confirming the regression |
+| `python -m pytest -q` after the fix and expanded controls | 231 passed; 98.17% core coverage |
+| `python -m ruff format --check .` / `python -m ruff check .` | Passed |
+| `python -m mypy agent_consensus` | Passed; 6 source files |
+| `git diff --check` | Passed |
+
+The follow-up's exact-head CI, installed artifact and source-archive evidence belongs in its commit
+verification record; an older wheel cannot prove this runtime fix. No new public API, dependency,
+license term, version, publisher configuration or sibling-repository change is included.
+
+## Mission evidence map (2026-08-31)
+
+This map ties the original numbered mission to concrete evidence rather than treating a green test
+count as a blanket completion claim. Historical baselines and exact-head records above remain
+separate from owner-controlled publication and real adoption.
+
+| Mission requirement | Evidence and disposition |
+| --- | --- |
+| 1. Preserve existing work and repository scope | Incremental git history, owner-authorized PR merges and subsequent `main` commits; clean synchronized checkpoints. No force pushes or sibling modifications. |
+| 2. Audit the real repository | Baseline wheel/import/install failures recorded above; current runtime, models, policy, packaging, docs, workflows and test assertions inspected. Recent executable-doc and numeric-error reproductions contradicted weaker prior evidence and were fixed. |
+| 3. Define a defensible independent product | README/product definition and primary-source research: bounded explicit-choice collection plus deterministic operational rules, with no framework/provider coupling or fabricated demand claim. |
+| 4. Maintain a productization record | This document records baseline, priorities, decisions, completed work, commands, risks, acceptance criteria and external gates. |
+| 5. Complete the primary journey | Static and async builders, `evaluate_decision`, seven offline examples, exact guide-snippet regressions and installed callback-enforcement checks. No placeholder host action is represented as a deployed action. |
+| 6. Apply package-specific quality | Deliberate typed exports, `py.typed`, version/changelog, zero-runtime-dependency metadata, wheel/sdist inspection and isolated public-API checks. UI/service/store requirements are inapplicable to this library. |
+| 7. Verify engineering and release quality | Pinned contributor tools, format/lint/strict typing, source and generated invariants, six CI environments, installed wheel and downloaded-sdist test records; seven-day candidate receipts retain exact tested files. |
+| 8. Address security, privacy and cost | The core has no provider/network/file persistence; tests cover bounded collection, cancellation, error redaction, budgets, vetoes and invalid input. SECURITY.md documents trusted adapters, cooperative limits and host-owned identity/retention. The dated formal scan does not cover later edits. |
+| 9. Onboard an independent user | README and getting-started snippets execute in source tests and installed-wheel checks; API, decision, integration, contribution and release guides are maintained. |
+| 10. Respect external/owner gates | No package publication or license switch is implied. Package ownership, legal confirmation, release identity/publisher configuration and actual consumer adoption remain unverified owner actions. |
+| 11. Apply the definition of done | Technical source/artifact evidence supports a standalone release candidate; it does not prove package-index installation, production adoption, authenticated approval or market demand. Those claims remain explicitly absent. |
+| 12. Provide an evidence-based handoff | Focused commits carry CI links, commands, results and artifact digests in their verification records. Release disposition remains qualified by the named external gates. |
+
 ## Deferred work and rationale
 
 - Provider adapters: demand and maintenance burden are unknown; injection already supports them.
