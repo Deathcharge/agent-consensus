@@ -236,6 +236,10 @@ a Windows test run, artifact checks, isolated wheel installation, and every exam
 wheel also runs a release-consumer simulation covering pass, veto, unknown choice, unavailable
 reviewer, and host-owned audit redaction (`scripts/check_installed.py`). It does not publish artifacts.
 
+An optional [installed policy-engine consumer](https://github.com/Deathcharge/agent-consensus/tree/main/integrations/policy_engine) demonstrates
+a real structured authorization decision combined with readiness at an enforcement point. It has a
+pinned producer contract and separate CI. The core wheel retains zero runtime dependencies.
+
 ## Package and release
 
 Build artifacts locally with `python -m build`. A release owner should then verify the package name,

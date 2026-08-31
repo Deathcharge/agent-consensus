@@ -1,0 +1,57 @@
+{
+  "contract_version": 1,
+  "producer": {
+    "distribution": "samsarix-policy-engine",
+    "version": "0.1.0",
+    "revision": "6e51f2585fa4412037f4f5458d313cb26ad3d59d",
+    "license": "BUSL-1.1"
+  },
+  "consensus": {"distribution": "agent-consensus", "version": "0.2.0"},
+  "expected_policy_digest": "a56d4e100f024f143121969504f77d6d",
+  "policy": {
+    "schema_version": 1,
+    "id": "consumer-release",
+    "default": "deny",
+    "rules": [
+      {
+        "id": "approved-staging-release",
+        "effect": "allow",
+        "principals": ["automation:release"],
+        "actions": ["release.promote"],
+        "resources": ["service:catalog"],
+        "when": {
+          "approved": {"equals": true},
+          "environment": {"equals": "staging"}
+        }
+      },
+      {
+        "id": "maintenance-freeze",
+        "effect": "deny",
+        "actions": ["release.promote"],
+        "resources": ["service:catalog"],
+        "when": {"maintenance_freeze": {"equals": true}}
+      }
+    ]
+  },
+  "request": {
+    "request_id": "release-184",
+    "principal": "automation:release",
+    "action": "release.promote",
+    "resource": "service:catalog",
+    "context": {
+      "approved": true,
+      "environment": "staging",
+      "maintenance_freeze": false,
+      "private_note": "DO_NOT_RETAIN_PRIVATE_CONTEXT"
+    }
+  },
+  "cases": [
+    {"name": "approved", "readiness": "ready", "status": "passed", "executed": true, "effect": "allow"},
+    {"name": "explicit-deny-overrides-ready-majority", "context": {"maintenance_freeze": true}, "readiness": "ready", "status": "blocked", "executed": false, "effect": "deny"},
+    {"name": "default-deny", "context": {"approved": false}, "readiness": "ready", "status": "blocked", "executed": false, "effect": "deny"},
+    {"name": "readiness-hold", "readiness": "hold", "status": "blocked", "executed": false, "effect": "allow"},
+    {"name": "unknown-readiness", "readiness": "future-value", "status": "indeterminate", "executed": false, "effect": "allow"},
+    {"name": "malformed-request", "request": {"unsupported": true}, "readiness": "ready", "status": "indeterminate", "executed": false, "effect": null},
+    {"name": "missing-request-identity", "request": {"request_id": null}, "readiness": "ready", "status": "indeterminate", "executed": false, "effect": "allow"}
+  ]
+}

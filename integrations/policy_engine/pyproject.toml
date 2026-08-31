@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agent-consensus-policy-consumer-example"
+version = "0.0.0"
+description = "Non-production installed-package integration example for agent-consensus"
+requires-python = ">=3.11,<3.15"
+license = "MIT"
+license-files = ["LICENSE"]
+readme = "README.md"
+classifiers = ["Private :: Do Not Upload"]
+dependencies = ["agent-consensus==0.2.0", "samsarix-policy-engine==0.1.0"]
+
+[tool.setuptools.packages.find]
+include = ["consensus_policy_consumer"]
+
+[tool.setuptools.package-data]
+consensus_policy_consumer = ["contract-v1.json"]

@@ -1,0 +1,73 @@
+name: Policy Engine consumer
+
+on:
+  push:
+    paths:
+      - "agent_consensus/**"
+      - "integrations/policy_engine/**"
+      - "scripts/check_installed.py"
+      - "pyproject.toml"
+      - "MANIFEST.in"
+      - "requirements-dev.txt"
+      - ".github/workflows/policy-engine-consumer.yml"
+  pull_request:
+    paths:
+      - "agent_consensus/**"
+      - "integrations/policy_engine/**"
+      - "scripts/check_installed.py"
+      - "pyproject.toml"
+      - "MANIFEST.in"
+      - "requirements-dev.txt"
+      - ".github/workflows/policy-engine-consumer.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: policy-consumer-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  installed-consumer:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            python: "3.14"
+            consumer_python: .contract-venv/bin/python
+          - os: windows-latest
+            python: "3.11"
+            consumer_python: .contract-venv/Scripts/python.exe
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: Deathcharge/policy-engine
+          ref: 6e51f2585fa4412037f4f5458d313cb26ad3d59d
+          path: .contract-producer
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ matrix.python }}
+      - run: test "$(git -C .contract-producer rev-parse HEAD)" = "6e51f2585fa4412037f4f5458d313cb26ad3d59d"
+      - run: python -m pip install --disable-pip-version-check -r requirements-dev.txt
+      - run: python -m build --outdir .contract-artifacts/consensus
+      - run: python -m build .contract-producer --outdir .contract-artifacts/producer
+      - run: python -m build integrations/policy_engine --outdir .contract-artifacts/consumer
+      - run: python -m twine check .contract-artifacts/consensus/* .contract-artifacts/producer/* .contract-artifacts/consumer/*
+      - run: python -m pip install --no-index --no-deps .contract-artifacts/producer/*.whl
+      - run: python -m mypy --strict --python-version 3.11 integrations/policy_engine/consensus_policy_consumer
+      - run: python -m venv .contract-venv
+      - run: ${{ matrix.consumer_python }} -m pip install --no-index --no-deps .contract-artifacts/consensus/*.whl .contract-artifacts/producer/*.whl .contract-artifacts/consumer/*.whl
+      - run: ${{ matrix.consumer_python }} -m pip check
+      - run: ${{ matrix.consumer_python }} -I integrations/policy_engine/verify.py
+      - run: ${{ matrix.consumer_python }} -I scripts/check_installed.py
