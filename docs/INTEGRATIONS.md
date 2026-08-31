@@ -8,6 +8,10 @@ vocabularies with an explicit normalizer.
 The runnable [`07_policy_panel.py`](../examples/07_policy_panel.py) combines authorization, ethics,
 and operational-readiness decisions without requiring any sibling package.
 
+For installed-package evidence using the actual Samsarix Policy Engine, see the optional
+[policy-engine consumer](../integrations/policy_engine/README.md). It has its own package, pinned
+producer revision, versioned fixture and CI; neither it nor its producer is in the core wheel.
+
 ## Shared vocabulary
 
 Use a deliberately closed gate vocabulary. The following adapter accepts explicit outputs used by
@@ -143,6 +147,10 @@ The adapter fields above reflect the locally inspected public contracts on 2026-
 | Samsarix Orchestration | application-owned approval step | run/step ID and idempotency key |
 | LaunchGuard | application-owned readiness decision | release marker and signed-evidence reference |
 
-These are integration recipes, not runtime dependencies or claims of cross-repository release
-compatibility. Pin and test the producer version in the consuming application. This repository's CI
-verifies only the provider-neutral example and `agent-consensus` public contract.
+These recipes are not runtime dependencies. The optional policy-engine consumer additionally
+verifies `samsarix-policy-engine` 0.1.0 at commit `6e51f2585fa4412037f4f5458d313cb26ad3d59d` using
+three installed wheels. Its `policy_version` field is the policy **schema version**, not a package
+version or policy-revision counter. The separate workflow tests pinned compatibility and local
+enforcement; it does not establish production adoption or compatibility with other revisions.
+The other producer recipes remain unverified integration guidance. Review each producer's separate
+license and pin/test it in the consuming application before use.

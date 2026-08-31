@@ -26,6 +26,9 @@ wheels/
 *.egg
 .venv
 .package-venv*/
+.contract-producer/
+.contract-artifacts/
+.contract-venv/
 env/
 venv/
 ENV/

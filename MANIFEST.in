@@ -12,3 +12,10 @@ recursive-include docs *.md
 recursive-include examples *.py
 recursive-include scripts *.py
 recursive-include tests *.py
+include integrations/policy_engine/LICENSE
+include integrations/policy_engine/MANIFEST.in
+include integrations/policy_engine/README.md
+include integrations/policy_engine/pyproject.toml
+include integrations/policy_engine/verify.py
+recursive-include integrations/policy_engine/consensus_policy_consumer *.py *.json
+include .github/workflows/policy-engine-consumer.yml

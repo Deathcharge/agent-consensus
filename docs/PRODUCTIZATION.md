@@ -278,6 +278,9 @@ agent framework.
   codes, and explicit host-enforcement guidance.
 - Added stable policy IDs/digests plus a provider-neutral policy-panel example and cookbook grounded
   in read-only inspection of real optional producer contracts.
+- Added an optional, separately packaged policy-engine consumer verified against a pinned real
+  producer wheel, with a versioned fixture, drift controls, immutable request binding, deny-veto
+  enforcement and a separate compatibility workflow. No producer code enters the core wheel.
 - Closed merged-review findings covering shared validation, immutable hashing, metadata tests,
   alias normalization, documentation accuracy, least-privilege release guidance, and immutable CI
   action references.
@@ -413,6 +416,91 @@ seven examples are required in addition to the source suite; the exact-head buil
 and artifact hashes are recorded in the pull request. The earlier independent security-fix review
 covered the minimum-weight patch; the generated-invariant follow-up was reviewed locally with
 separate static, async, overflow, decimal-oracle, and installed-wheel regressions.
+
+## Installed producer/consumer verification (2026-08-31)
+
+The documented policy-panel recipe now has a separately packaged reference consumer under
+`integrations/policy_engine`. It uses actual `PolicyEngine.evaluate` outputs from
+`samsarix-policy-engine` 0.1.0 at public commit
+`6e51f2585fa4412037f4f5458d313cb26ad3d59d`; the producer checkout was inspected read-only and exported
+to a temporary directory for building. The sibling worktree was not modified. Three separate wheels
+(core, producer, consumer) were installed with `--no-index --no-deps`, then verified in Python
+isolated mode from outside the checkout. This proves installed contract compatibility, not external
+production adoption.
+
+Consumer contract v1 includes policy content, the golden producer policy digest
+`a56d4e100f024f143121969504f77d6d`, producer revision/version, request fixture and seven expected
+outcomes. The source policy version is its schema version. A source deny vetoes the heavier readiness
+majority; missing/invalid/drifted evidence fails closed. The host operation receives the same frozen
+request evaluated by the source. The returned audit is allowlisted, and operation exceptions
+propagate without retries or invented success. Eight installed-consumer tests cover those paths,
+including a mutation during asynchronous collection and seven source-contract drift variants.
+
+| Command | Local result |
+| --- | --- |
+| `python -m ruff format --check .` / `python -m ruff check .` | Passed |
+| `python -m mypy agent_consensus` | Passed; 6 source files |
+| `python -m mypy --strict --python-version 3.11 integrations/policy_engine/consensus_policy_consumer` | Passed; consumer source checked against the installed typed producer |
+| `python -m pytest -q` | 118 passed; core coverage remains 97.22% |
+| `python -m pytest -q` from the extracted fresh core sdist | 118 passed; import-path assertion confirmed the extracted package, not the checkout |
+| `python -m build <producer-export> --outdir <temp>/producer-dist` | Built producer sdist and wheel from the pinned source export |
+| `python -m build integrations/policy_engine --outdir <temp>/consumer-dist` | Built independent consumer sdist and wheel, including its contract |
+| `<consumer-python> -m pip install --no-index --no-deps <three-wheels>` / `pip check` | Installed successfully; no broken requirements |
+| `<consumer-python> -I integrations/policy_engine/verify.py` | 8 passed; all imports came from the isolated environment |
+| `<consumer-python> -I scripts/check_installed.py` | 4 passed; core wheel excludes integration/producer modules |
+| `python -m twine check <core/producer/consumer artifacts>` | All six wheel/sdist artifacts passed |
+
+The dedicated workflow runs on Linux Python 3.14 and Windows Python 3.11, using a pinned public
+producer checkout and read-only permissions. Core CI has no dependency on that checkout or workflow.
+Exact-head artifact hashes, clean-sdist verification and hosted results belong in the integration PR.
+The producer's BUSL terms remain separate from this project's MIT terms; non-production integration
+testing is not a grant of production rights, and no producer source is vendored or relicensed.
+
+A fresh primary-source check of [LangGraph workflow patterns](https://docs.langchain.com/oss/python/langgraph/workflows-agents),
+[Agents SDK guardrails](https://openai.github.io/openai-agents-python/guardrails/), and
+[OPA decision logs](https://www.openpolicyagent.org/docs/management-decision-logs) supports the
+same product choice: compose with host workflow/guardrail systems and use explicit, redacted audit
+context. The inference for this product is to prove a narrow enforcement integration, not add an
+agent framework, hosted database or telemetry service. No comparative performance or market-demand
+claim follows from that research.
+
+## Release-candidate security review and handoff (2026-08-31)
+
+A Standard static security scan completed successfully for revision
+`4d87c0a8d6af49d4317d22adcf81b09586f9d7ab`, scan ID
+`7fa48710-d8c6-45ae-aace-f20d70bdbe39`. An independent baseline, architecture review, two focused
+control reviews and parent reconciliation covered all 55 tracked files. No confirmed vulnerabilities
+were reported. The generated report, canonical manifest, coverage and findings artifacts were
+validated and indexed by the scan service; this is distinct from the earlier failed diff scan.
+
+The audit was read-only and offline: test code was inspected, not executed as part of the scan.
+The runtime and installed-package results above are separate verification evidence. Producer
+implementation, ignored build environments, live infrastructure and real consuming applications
+were outside scope. A clean static scan is not a guarantee of security or production readiness.
+
+Review confirmed the in-scope veto, required-participant, closed-vocabulary, exact minimum-weight,
+request-binding and audit-allowlist controls. Documented limitations remain: floating-point
+thresholds, host-authority adapters, cooperative/per-run limits, unauthenticated participant names,
+shallow metadata freezing and host-owned authorization/retention. The README now distinguishes the
+async quorum default of 2 from the collected-vote default of 1 and makes the different roster and
+resource-limit contracts explicit. These follow-up edits change documentation only.
+
+Release handoff order:
+
+1. Review and merge [PR #14](https://github.com/Deathcharge/agent-consensus/pull/14), which contains
+   numeric hardening and isolated artifact verification, when an owner authorizes the merge.
+2. Retarget the stacked [PR #15](https://github.com/Deathcharge/agent-consensus/pull/15) from
+   `codex/exact-policy-weight` to `main` after that merge, verify the resulting diff and CI, then
+   review the optional producer/consumer integration independently.
+3. Confirm license, package ownership and release identity, then follow `RELEASING.md` before any
+   TestPyPI/PyPI upload. No publication, deployment, license change or sibling modification is
+   included in this handoff.
+4. Before claiming production adoption, obtain the actual consumer application's own enforcement,
+   identity, privacy, idempotency and rollback tests. The reference consumer is not that evidence.
+
+Exact commit checks, artifact hashes and the completed scan identifier belong in the pull-request
+evidence. The scan covers the revision named above; later documentation edits do not imply a new
+whole-repository audit or silently extend its scope.
 
 ## Deferred work and rationale
 

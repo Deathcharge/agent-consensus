@@ -20,15 +20,17 @@ production adoption remain owner-controlled decisions.
 
 - Keep Python 3.10–3.14, Windows, lint, strict typing, coverage, artifact, installed-wheel, and
   offline-example checks green.
-- Exercise one real consumer workflow using `DecisionPolicy` and record a versioned contract fixture.
+- Keep the optional installed policy-engine consumer and versioned contract fixture green; obtain
+  a real application's consumer-owned enforcement evidence before claiming production adoption.
 - Confirm package-index ownership, license, release version, provenance workflow, and rollback before
   publication.
 - Preserve immutable CI/action references and keep dependency upgrades isolated in reviewable PRs.
 
 ## Highest-value product work
 
-1. Prove the documented policy-panel recipe in a separate package consumer with a pinned producer
-   version and a versioned contract fixture.
+1. Adopt the verified policy-panel contract in a real application's own CI and actual enforcement
+   point. The separately packaged reference consumer now verifies the pinned producer through
+   installed wheels, including deny precedence, drift and error handling.
 2. Define a small versioned JSON Schema for persisted consensus/verdict audit records if a real
    consumer needs interchange.
 3. Add an optional OpenTelemetry integration recipe only after adopters identify required fields
@@ -36,8 +38,9 @@ production adoption remain owner-controlled decisions.
 
 Bounded exhaustive invariants now cover policy precedence, normalization, input ordering, policy
 strengthening and decimal successful-weight boundaries. Expand their finite input spaces when real
-consumers supply additional edge cases. Installed-wheel checks include a consumer-owned release
-simulation, but that does not replace the separate real-consumer milestone above.
+consumers supply additional edge cases. Core installed-wheel checks include a dependency-free release
+simulation, and the optional policy-engine integration verifies a real installed producer. Neither
+replaces evidence from an externally adopted application's actual action boundary.
 
 ## Deliberate deferrals
 

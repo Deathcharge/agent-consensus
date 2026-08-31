@@ -39,7 +39,14 @@ class InstalledWheelTests(unittest.IsolatedAsyncioTestCase):
         )
         paths = {str(path).replace("\\", "/") for path in installed.files or ()}
         self.assertIn("agent_consensus/py.typed", paths)
-        self.assertFalse(any(path.startswith("tests/") for path in paths))
+        self.assertFalse(
+            any(
+                path.startswith(
+                    ("tests/", "integrations/", "policy_engine/", "consensus_policy_consumer/")
+                )
+                for path in paths
+            )
+        )
         for filename in ("LICENSE", "NOTICE", "TRADEMARKS.md"):
             self.assertTrue(any(path.endswith(f".dist-info/licenses/{filename}") for path in paths))
         # Optional contributor requirements are allowed; runtime requirements are not.

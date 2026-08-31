@@ -6,6 +6,10 @@ This project follows semantic versioning. Dates use ISO 8601.
 
 ### Added
 
+- A separately packaged optional policy-engine consumer with a pinned producer revision, versioned
+  contract fixture, real allow/deny evaluation, fail-closed drift handling, immutable request binding,
+  audit redaction and dedicated installed-wheel CI; the core remains dependency-free
+
 - Fail-closed operational decision policies with pass, veto, vocabulary, required-participant, and
   successful-weight rules
 - Stable decision statuses and reason codes with JSON-serializable audit verdicts
