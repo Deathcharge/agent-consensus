@@ -464,6 +464,44 @@ context. The inference for this product is to prove a narrow enforcement integra
 agent framework, hosted database or telemetry service. No comparative performance or market-demand
 claim follows from that research.
 
+## Release-candidate security review and handoff (2026-08-31)
+
+A Standard static security scan completed successfully for revision
+`4d87c0a8d6af49d4317d22adcf81b09586f9d7ab`, scan ID
+`7fa48710-d8c6-45ae-aace-f20d70bdbe39`. An independent baseline, architecture review, two focused
+control reviews and parent reconciliation covered all 55 tracked files. No confirmed vulnerabilities
+were reported. The generated report, canonical manifest, coverage and findings artifacts were
+validated and indexed by the scan service; this is distinct from the earlier failed diff scan.
+
+The audit was read-only and offline: test code was inspected, not executed as part of the scan.
+The runtime and installed-package results above are separate verification evidence. Producer
+implementation, ignored build environments, live infrastructure and real consuming applications
+were outside scope. A clean static scan is not a guarantee of security or production readiness.
+
+Review confirmed the in-scope veto, required-participant, closed-vocabulary, exact minimum-weight,
+request-binding and audit-allowlist controls. Documented limitations remain: floating-point
+thresholds, host-authority adapters, cooperative/per-run limits, unauthenticated participant names,
+shallow metadata freezing and host-owned authorization/retention. The README now distinguishes the
+async quorum default of 2 from the collected-vote default of 1 and makes the different roster and
+resource-limit contracts explicit. These follow-up edits change documentation only.
+
+Release handoff order:
+
+1. Review and merge [PR #14](https://github.com/Deathcharge/agent-consensus/pull/14), which contains
+   numeric hardening and isolated artifact verification, when an owner authorizes the merge.
+2. Retarget the stacked [PR #15](https://github.com/Deathcharge/agent-consensus/pull/15) from
+   `codex/exact-policy-weight` to `main` after that merge, verify the resulting diff and CI, then
+   review the optional producer/consumer integration independently.
+3. Confirm license, package ownership and release identity, then follow `RELEASING.md` before any
+   TestPyPI/PyPI upload. No publication, deployment, license change or sibling modification is
+   included in this handoff.
+4. Before claiming production adoption, obtain the actual consumer application's own enforcement,
+   identity, privacy, idempotency and rollback tests. The reference consumer is not that evidence.
+
+Exact commit checks, artifact hashes and the completed scan identifier belong in the pull-request
+evidence. The scan covers the revision named above; later documentation edits do not imply a new
+whole-repository audit or silently extend its scope.
+
 ## Deferred work and rationale
 
 - Provider adapters: demand and maintenance burden are unknown; injection already supports them.

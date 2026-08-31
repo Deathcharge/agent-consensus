@@ -82,6 +82,10 @@ Only `choice` affects consensus. It must be non-empty and at most 256 characters
 present, must be between 0 and 1. Reported tokens cannot be negative or exceed the allocation passed
 to the adapter. Metadata is returned unchanged and is never logged by the library.
 
+The response freezes a defensive copy of the outer metadata mapping, not its nested values.
+Nested objects remain caller-owned; neither the response nor its exported dictionary is a
+tamper-evident audit archive. Copy, redact and protect retained evidence in the host application.
+
 ## `evaluate_votes`
 
 ```python

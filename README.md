@@ -173,9 +173,11 @@ without adding persistence, signing, or a policy service.
 
 ## Decision semantics
 
-- The default threshold is two-thirds of **all configured participant weight**.
-- Quorum is a separate minimum count of successful responses (default: 2).
-- Timeouts and errors do not vote and still count in the total configured weight.
+- The default threshold is two-thirds of **all configured participant weight** for
+  `ConsensusEngine`, or all supplied vote weight for `evaluate_votes`.
+- Quorum is a separate minimum count of successful responses: `ConsensusEngine` defaults to 2;
+  `evaluate_votes` defaults to 1 and cannot represent missing or failed participants.
+- Async timeouts and errors do not vote and still count in the total configured weight.
 - Equal leading weights are always `no_consensus`, even if a threshold of 0.5 is configured.
 - The default normalizer only strips repeated whitespace and applies Unicode case folding.
 - Supporting `content`, confidence, and metadata never change the vote.
@@ -190,6 +192,10 @@ and does not provide Byzantine fault tolerance, durable replication, or leader e
 `ConsensusConfig` bounds participant count, concurrency, per-participant timeout, prompt length,
 response length, per-participant requested output tokens, and total requested output tokens. The
 engine cancels participant tasks when its own task is cancelled.
+
+These are per-run, cooperative limits, not a sandbox or process-wide admission control. Blocking
+adapters or cancellation cleanup can exceed the timeout. The synchronous `evaluate_votes` helper
+does not apply `ConsensusConfig` limits; its caller owns roster completeness and input size.
 
 The package never logs or persists prompts, responses, metadata, or credentials. Error results retain
 only the exception type, not the exception message. The returned result still contains participant
