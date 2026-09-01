@@ -1,6 +1,6 @@
 # Reproducible contributor toolchain. Runtime installation has no dependencies.
 -e .
-build==1.5.0
+build==1.6.0
 mypy==2.3.0
 pytest==9.0.3
 pytest-asyncio==1.4.0
